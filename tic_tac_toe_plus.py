@@ -22,6 +22,7 @@ import random
 import numpy as np
 from time import sleep
 import time
+import neural_network as neural_network_class
 
 
 global t0,t1
@@ -68,6 +69,7 @@ class FenPrincipale(Tk):
         self.__boutonNewGame = Button(self, text='New game', command=self.new_game).pack(side=LEFT, padx=5, pady=5)
         self.__boutonModePvP = Button(self, text='PvP mode', command=self.modePvP).pack(side=LEFT, padx=5, pady=5)
         self.__boutonModePvM = Button(self, text='PvM mode', command=self.modePvM).pack(side=LEFT, padx=5, pady=5)
+        self.__boutonTrainNN = Button(self, text='Train NN', command=self.trainNN).pack(side=LEFT, padx=5, pady=5)
         self.__boutonExit = Button(self, text='Exit', command=self.exit).pack(side=LEFT, padx=5, pady=5)
 
         self.__buttons = []
@@ -86,6 +88,10 @@ class FenPrincipale(Tk):
 
         #initialization of the mode (PvP or PvM)
         self.__mode = "PvP"
+
+        self.__nn = neural_network_class.NeuralNetwork()
+
+        self.__game_recorder = neural_network_class.Game_recorder("record_games.JSON")
 
     def exit(self):
         self.destroy()
@@ -153,7 +159,7 @@ class FenPrincipale(Tk):
             self.victory()
 
         elif len(self.__list_signs) == 9:
-            self.__instructions.config(text="The board is full, please start a new game !")
+            self.board_full()
 
         else:
             if self.__last_sign == self.__real_player_sign:
@@ -174,20 +180,48 @@ class FenPrincipale(Tk):
             i = np.random.randint(0,9)
             while i in self.__list_index_signs:
                 i = np.random.randint(0, 9)
+
+            #i = self.__nn.predict_square(np.array(self.list_square_to_input()))
             time.sleep(0.5)
+
+
             self.draw_sign(i)
             self.next_turn()
-
         else:
             print("error,board full")
 
+    def trainNN(self):
+        self.__nn.train_neural_network()
+
     def victory(self):
-        if self.__last_sign == self.__real_player_sign:
-            self.__instructions.config(text="You lose, try again")
-        else:
-            self.__instructions.config(text="You won, congratulations !")
+        if self.__mode == "PvM":
+            if self.__last_sign == self.__real_player_sign:
+                self.__instructions.config(text="You lose, try again")
+                data = {}
+                data["board_values"] = self.list_square_to_input()
+                data["end_state"] =  "IA_victory"
+                self.__game_recorder.add_game(data)
+            else:
+                self.__instructions.config(text="You won, congratulations !")
+                data = {}
+                data["board_values"] = self.list_square_to_input()
+                data["end_state"] = "Player_victory"
+                self.__game_recorder.add_game(data)
+        else :
+            if self.__last_sign == 'circle':
+                self.__instructions.config(text="Player CROSS, congratulations !! You won")
+            else:
+                self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
         for button in self.__buttons:
             button.config(state=DISABLED)
+
+    def board_full(self):
+        self.__instructions.config(text="The board is full, please start a new game !")
+        if self.__mode == "PvM":
+            data = {}
+            data["board_values"] = self.list_square_to_input()
+            data["end_state"] = "null"
+            self.__game_recorder.add_game(data)
 
     def is_won(self):
         if len(self.__list_signs) <= 4:
@@ -207,7 +241,7 @@ class FenPrincipale(Tk):
 
         #check if there are 3 aligned signs
         if len(list_cross) >= 3:
-            for i in range(0,len(list_cross-2)):
+            for i in range(0,len(list_cross)-2):
                 #Check if 3 aligned cross on the lines
                 if (list_cross[i] == 0 or list_cross[i] == 3 or list_cross[i] == 6) and list_cross[i]==list_cross[i+1]-1==list_cross[i+2]-2:
                     return True
@@ -247,6 +281,19 @@ class FenPrincipale(Tk):
         self.__mode = "PvM"
         self.__gameMode.config(text="Game mode : {}".format(self.__mode))
 
+    def list_square_to_input(self):
+        """
+        Take the list of squares fill in by a sign and create a 9x1
+        array (input_layer for neural network) with values -1 for a cross,
+        0 if empty square and 1 for a circle.
+        """
+        input_layer = [0 for k in range(9)]
+        for i in range(len(self.__list_signs)):
+            if type(self.__list_signs[i]) == list:
+                input_layer[self.__list_index_signs[i]] = -1
+            else:
+                input_layer[self.__list_index_signs[i]] = 1
+        return input_layer
 
 
 
@@ -266,6 +313,8 @@ class MonBoutton(Button):
         i = self.__pos
         self.fen.draw_sign(i)
         self.fen.next_turn()
+
+
 
 
 # --------------------------------------------------------

@@ -20,7 +20,6 @@ from tkinter import *
 from tkinter.messagebox import *
 import random
 import numpy as np
-from time import sleep
 import time
 
 
@@ -151,7 +150,7 @@ class FenPrincipale(Tk):
 
         #check if there are 3 aligned signs
         if len(list_cross) >= 3:
-            for i in range(0,len(list_cross-2)):
+            for i in range(0,len(list_cross)-2):
                 #Check if 3 aligned cross on the lines
                 if (list_cross[i] == 0 or list_cross[i] == 3 or list_cross[i] == 6) and list_cross[i]==list_cross[i+1]-1==list_cross[i+2]-2:
                     return True

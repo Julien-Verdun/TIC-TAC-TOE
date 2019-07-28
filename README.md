@@ -14,12 +14,13 @@ The first player who achieve this goal wins the game. If all squares have been f
 
 In this version, the basic elements of the game are programming and allow players to play in a PvP mode (Player versus Player).
 
+The code of the basic version is included on the file "tic_tac_toe.py".
 
 ## The improved version
 
 The improved version includes a PvM mode (Player versus Monster). A Neural Network is implemented and learnt from the game it played.
 
-
+The code of the basic version is included on the file "tic_tac_toe_plus.py".
 
 
 
