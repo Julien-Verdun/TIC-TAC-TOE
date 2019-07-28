@@ -53,7 +53,11 @@ class FenPrincipale(Tk):
         self.__instructions.pack(side=TOP)
         self.__instructions.config(text="Welcome on board, please start the game !")
 
-        self.title('TIC TAC TOE')
+        self.__gameMode = Label(self)
+        self.__gameMode.pack(side=TOP)
+        self.__gameMode.config(text="Game mode : PvP")
+
+        self.title('TIC TAC TOE PLUS')
         self.__zoneAffichage = ZoneAffichage(self)
         self.__zoneAffichage.pack(padx=5, pady=5)
 
@@ -62,6 +66,8 @@ class FenPrincipale(Tk):
 
         self.__boutonPlay = Button(self, text='Play', command=self.play).pack(side=LEFT, padx=5, pady=5)
         self.__boutonNewGame = Button(self, text='New game', command=self.new_game).pack(side=LEFT, padx=5, pady=5)
+        self.__boutonModePvP = Button(self, text='PvP mode', command=self.modePvP).pack(side=LEFT, padx=5, pady=5)
+        self.__boutonModePvM = Button(self, text='PvM mode', command=self.modePvM).pack(side=LEFT, padx=5, pady=5)
         self.__boutonExit = Button(self, text='Exit', command=self.exit).pack(side=LEFT, padx=5, pady=5)
 
         self.__buttons = []
@@ -73,20 +79,35 @@ class FenPrincipale(Tk):
         self.__list_signs = []
         self.__list_index_signs = []
 
-        #initialization of the first sign to play
+        #initialization of the first sign to play (circle or cross)
         self.__last_sign = "circle"
+
+        self.__real_player_sign = self.__last_sign
+
+        #initialization of the mode (PvP or PvM)
+        self.__mode = "PvP"
 
     def exit(self):
         self.destroy()
     def play(self):
         self.choose_sign()
+        if self.__mode == "PvM":
+            self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
-        instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
+        if self.__mode == "PvP":
+            instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
+        else:
+            instruction_text = "Let's play the game ! Your turn to play !"
         self.__instructions.config(text=instruction_text)
     def new_game(self):
         self.choose_sign()
-        instruction_text = "Let's play a new game ! Player " + self.__last_sign + " you start !"
+        if self.__mode == "PvM":
+            self.__real_player_sign = self.__last_sign
+        if self.__mode == "PvP":
+            instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
+        else:
+            instruction_text = "Let's play the game ! Your turn to play !"
         self.__instructions.config(text = instruction_text)
         for button in self.__buttons:
             button.config(state=NORMAL)
@@ -104,27 +125,67 @@ class FenPrincipale(Tk):
         x2 = (i - 3 * (i // 3)) * (height // 3) + height // 3 - 10
         y2 = (i // 3) * (width // 3) + width // 3 - 10
         if self.__last_sign == 'cross':
-            self.__list_signs.append(self.__zoneAffichage.create_oval(x1,y1,x2,y2,outline="green",width=4))
+            self.__list_signs.append([self.__zoneAffichage.create_line(x1, y1, x2, y2, fill="red", width=4),self.__zoneAffichage.create_line(x1, y2, x2, y1, fill="red", width=4)])
             self.__list_index_signs.append(i)
             self.__last_sign = "circle"
         elif self.__last_sign == 'circle':
-            self.__list_signs.append([self.__zoneAffichage.create_line(x1, y1, x2, y2, fill="red", width=4),self.__zoneAffichage.create_line(x1, y2, x2, y1, fill="red", width=4)])
+            self.__list_signs.append(self.__zoneAffichage.create_oval(x1, y1, x2, y2, outline="green", width=4))
             self.__list_index_signs.append(i)
             self.__last_sign = "cross"
+
     def next_turn(self):
+        if self.__mode == "PvP":
+            self.next_turn_PvP()
+        else :
+            self.next_turn_PvM()
+
+    def next_turn_PvP(self):
         if self.is_won():
             self.victory()
 
         elif len(self.__list_signs) == 9:
             self.__instructions.config(text="The board is full, please start a new game !")
         else:
-            self.__instructions.config(text="Well played, next turn")
+            self.__instructions.config(text="Well played, player {} it's your turn".format(self.__last_sign))
+
+    def next_turn_PvM(self):
+        if self.is_won():
+            self.victory()
+
+        elif len(self.__list_signs) == 9:
+            self.__instructions.config(text="The board is full, please start a new game !")
+
+        else:
+            if self.__last_sign == self.__real_player_sign:
+                self.__instructions.config(text="Your turn to play")
+                for i in range(9):
+                    if i in self.__list_index_signs :
+                        self.__buttons[i].config(state=DISABLED) #est-ce necessaire
+                    else:
+                        self.__buttons[i].config(state=NORMAL)
+            else:
+                self.__instructions.config(text="Please wait for the IA to play")
+                for button in self.__buttons:
+                    button.config(state=DISABLED)
+                self.IA_turn()
+
+    def IA_turn(self):
+        if len(self.__list_index_signs) < 9:
+            i = np.random.randint(0,9)
+            while i in self.__list_index_signs:
+                i = np.random.randint(0, 9)
+            time.sleep(0.5)
+            self.draw_sign(i)
+            self.next_turn()
+
+        else:
+            print("error,board full")
 
     def victory(self):
-        if self.__last_sign == 'circle':
-            self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
+        if self.__last_sign == self.__real_player_sign:
+            self.__instructions.config(text="You lose, try again")
         else:
-            self.__instructions.config(text="Player CROSS, congratulations !! You won")
+            self.__instructions.config(text="You won, congratulations !")
         for button in self.__buttons:
             button.config(state=DISABLED)
 
@@ -176,7 +237,15 @@ class FenPrincipale(Tk):
         return False
 
     def choose_sign(self):
-        self.__last_sign = ["cricle","cross"][np.random.randint(0,2)]
+        self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
+
+    def modePvP(self):
+        self.__mode = "PvP"
+        self.__gameMode.config(text="Game mode : {}".format(self.__mode))
+
+    def modePvM(self):
+        self.__mode = "PvM"
+        self.__gameMode.config(text="Game mode : {}".format(self.__mode))
 
 
 

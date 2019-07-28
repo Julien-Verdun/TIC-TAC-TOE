@@ -98,19 +98,24 @@ class FenPrincipale(Tk):
                 self.__zoneAffichage.delete(elt)
         self.__list_signs = []
         self.__list_index_signs = []
+
     def draw_sign(self,i):
+        """
+        Draw the next signs on the square number i.
+        """
         x1 = (i - 3 * (i // 3)) * (height // 3) + 15
         y1 = (i // 3) * (width // 3) + 15
         x2 = (i - 3 * (i // 3)) * (height // 3) + height // 3 - 10
         y2 = (i // 3) * (width // 3) + width // 3 - 10
         if self.__last_sign == 'cross':
-            self.__list_signs.append(self.__zoneAffichage.create_oval(x1,y1,x2,y2,outline="green",width=4))
+            self.__list_signs.append([self.__zoneAffichage.create_line(x1, y1, x2, y2, fill="red", width=4),self.__zoneAffichage.create_line(x1, y2, x2, y1, fill="red", width=4)])
             self.__list_index_signs.append(i)
             self.__last_sign = "circle"
         elif self.__last_sign == 'circle':
-            self.__list_signs.append([self.__zoneAffichage.create_line(x1, y1, x2, y2, fill="red", width=4),self.__zoneAffichage.create_line(x1, y2, x2, y1, fill="red", width=4)])
+            self.__list_signs.append(self.__zoneAffichage.create_oval(x1, y1, x2, y2, outline="green", width=4))
             self.__list_index_signs.append(i)
             self.__last_sign = "cross"
+
     def next_turn(self):
         if self.is_won():
             self.victory()
@@ -118,13 +123,13 @@ class FenPrincipale(Tk):
         elif len(self.__list_signs) == 9:
             self.__instructions.config(text="The board is full, please start a new game !")
         else:
-            self.__instructions.config(text="Well played, next turn")
+            self.__instructions.config(text="Well played, player {} it's your turn".format(self.__last_sign))
 
     def victory(self):
         if self.__last_sign == 'circle':
-            self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
-        else:
             self.__instructions.config(text="Player CROSS, congratulations !! You won")
+        else:
+            self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
         for button in self.__buttons:
             button.config(state=DISABLED)
 
@@ -176,7 +181,7 @@ class FenPrincipale(Tk):
         return False
 
     def choose_sign(self):
-        self.__last_sign = ["cricle","cross"][np.random.randint(0,2)]
+        self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
 
 
 
