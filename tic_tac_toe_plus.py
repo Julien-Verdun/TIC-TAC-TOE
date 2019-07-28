@@ -180,6 +180,10 @@ class FenPrincipale(Tk):
 
 
 
+
+
+
+
 class MonBoutton(Button):
     def __init__(self,fen,f,tex,i):
         Button.__init__(self,master=f,text=tex)
