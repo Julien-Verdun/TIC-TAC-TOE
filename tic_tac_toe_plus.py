@@ -93,6 +93,10 @@ class FenPrincipale(Tk):
 
         self.__game_recorder = neural_network_class.Game_recorder("record_games.JSON")
 
+        t1 = time.time()
+        print("Time to run the game : ",t1-t0)
+
+
     def exit(self):
         self.destroy()
     def play(self):
@@ -189,6 +193,14 @@ class FenPrincipale(Tk):
             self.next_turn()
         else:
             print("error,board full")
+
+    def look_for_danger(self):
+        """
+        Look for 2 aligned signs who could let the player win at the next game.
+        Not part of the training.
+        """
+        for self.__list_index_signs:
+            pass
 
     def trainNN(self):
         self.__nn.train_neural_network()

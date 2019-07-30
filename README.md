@@ -1,13 +1,22 @@
 # TIC-TAC-TOE
 
+## Description of the project
 
-The project aims at programming the game "Tic Tac Toe".
+The project aims at programming the game "Tic Tac Toe" with Python.
 
 This game is a two-player game. It consists in filling in a board, composed of 9 squares, with cross and circles depending on the camp, in order to aligned 3 identical signs.
 
 The first player who achieve this goal wins the game. If all squares have been filled in by a sign but there are no 3 aligned squares, the game is lost for both players.
  
- 
+#### Python packages required
+
+In order to play the game you will need the following python packages installed on you python :
+- tensorflow
+- keras
+- tkinter
+- numpy
+- time
+- random
  
 ## The simple version
 
