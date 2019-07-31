@@ -181,9 +181,22 @@ class FenPrincipale(Tk):
 
     def IA_turn(self):
         if len(self.__list_index_signs) < 9:
+            """
             i = np.random.randint(0,9)
             while i in self.__list_index_signs:
                 i = np.random.randint(0, 9)
+            """
+            #get the critical squre to play
+            i = self.look_around()
+            #if no 2 square aligned for player or for IA, play randomly
+            if i == -1:
+                i = np.random.randint(0, 9)
+                while i in self.__list_index_signs:
+                    i = np.random.randint(0, 9)
+            #else, stop the player or win the game
+            else:
+                print("Incredible")
+
 
             #i = self.__nn.predict_square(np.array(self.list_square_to_input()))
             time.sleep(0.5)
@@ -194,13 +207,98 @@ class FenPrincipale(Tk):
         else:
             print("error,board full")
 
-    def look_for_danger(self):
+    def look_around(self):
         """
-        Look for 2 aligned signs who could let the player win at the next game.
-        Not part of the training.
+        The function is looking for 2 aligned signs that could let the player win during
+        the next game or 2 aligned signs that could be completed by a third one in order
+        to the IA to win the game.
+        The function create a list of all critical squares (that could be a threat or an opportunity)
+        and then choose the more critical square by giving priority to the defense better than to the attack.
+        The function returns then the index of the square that IA should play.
         """
-        for self.__list_index_signs:
-            pass
+
+        #defining the IA sign
+        if self.__real_player_sign == "circle":
+            IA_sign = -1 # "cross"
+        else:
+            IA_sign = 1 #"circle"
+
+        list_sign_to_play = []
+
+        #list of the sign convert to -1 0 and 1
+        list_signs = self.list_square_to_input(self.__list_index_signs)
+
+        # for the 3 lines
+        for i in range(0,len(self.__list_index_signs),3):
+            if self.unique_sign(list_signs[i:i+3]):#if the squares include similar signs or are empty
+                j = self.position_empty_square(list_signs[i:i+3])
+                list_sign_to_play.append(j+i)
+                if list_signs[i] == IA_sign :
+                    list_sign_to_play.append("Attacking")
+                else:
+                    list_sign_to_play.append("Defending")
+        # for the 3 columns
+        for i in range(3):
+            sub_list_signs = [list_signs[i],list_signs[i+3],list_signs[i+6]]
+            if self.unique_sign(sub_list_signs):
+                j = self.position_empty_square(sub_list_signs)
+                list_sign_to_play.append(i+[0,3,6][j])
+                if list_signs[i] == IA_sign:
+                    list_sign_to_play.append("Attacking")
+                else:
+                    list_sign_to_play.append("Defending")
+
+        #for diagonals
+        diag1 = [2,4,6]
+        if self.unique_sign(diag1):
+            j = self.position_empty_square(diag1)
+            list_sign_to_play.append(diag1[j])
+            if list_signs[diag1[0]] == IA_sign:
+                list_sign_to_play.append("Attacking")
+            else:
+                list_sign_to_play.append("Defending")
+
+
+        diag2 = [1, 5, 9]
+        if self.unique_sign(diag2):
+            j = self.position_empty_square(diag2)
+            list_sign_to_play.append(diag2[j])
+            if list_signs[diag2[0]] == IA_sign:
+                list_sign_to_play.append("Attacking")
+            else:
+                list_sign_to_play.append("Defending")
+
+
+        # we now have the list of critical squares and the information, filled in this square is
+        # a defense strategy or an attack strategy, we must choose the more critical one
+
+        if len(list_sign_to_play) == 0:
+            return -1
+        elif len(list_sign_to_play) == 2:
+            return list_sign_to_play[0]
+        else:
+            if "Defending" not in list_sign_to_play:
+                return list_sign_to_play[0]
+            else:
+                return list_sign_to_play[list_sign_to_play.index("Defending")-1]
+
+    def unique_sign(self,list):
+        sign = list[0]
+        for elt in list:
+            if elt != 0 and elt != sign:
+                return False
+        return True
+
+    def position_empty_square(self,list):
+        nb_null = 0
+        for elt in list:
+            if elt == 0:
+                nb_null += 1
+        if nb_null != 1:#si plus d'une case vide sur les trois
+            return -1
+        else:#une unique case vide, on renvoie son index
+            return list.index(0)
+
 
     def trainNN(self):
         self.__nn.train_neural_network()
@@ -293,7 +391,7 @@ class FenPrincipale(Tk):
         self.__mode = "PvM"
         self.__gameMode.config(text="Game mode : {}".format(self.__mode))
 
-    def list_square_to_input(self):
+    def list_square_to_input(self,input=[]):
         """
         Take the list of squares fill in by a sign and create a 9x1
         array (input_layer for neural network) with values -1 for a cross,
