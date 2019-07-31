@@ -10,9 +10,16 @@ TO-DO LIST
 
 Choix aleatoire du joueur qui commence
 
-Possibilité de réinitialiser le plateau
 
-Menu joueur contre joueur et joueur contre IA
+Entrainement de l'IA : trouver comment générer et sous quelle forme générer les données d'apprentissage
+
+Modifier les données sauvegardées afin d'avoir des données exploitables pour l'entrainement
+Sauvegarde pour chaque mouvement :
+- du damier +1 0 -1
+- du prochain mouvement, signe et case
+- du résultat finale appliqué à la fin de la partie à chaque ligne issues de la partie
+
+
 """
 
 
@@ -56,7 +63,7 @@ class FenPrincipale(Tk):
 
         self.__gameMode = Label(self)
         self.__gameMode.pack(side=TOP)
-        self.__gameMode.config(text="Game mode : PvP")
+        self.__gameMode.config(text="Game mode : classic_PvM")
 
         self.title('TIC TAC TOE PLUS')
         self.__zoneAffichage = ZoneAffichage(self)
@@ -68,7 +75,8 @@ class FenPrincipale(Tk):
         self.__boutonPlay = Button(self, text='Play', command=self.play).pack(side=LEFT, padx=5, pady=5)
         self.__boutonNewGame = Button(self, text='New game', command=self.new_game).pack(side=LEFT, padx=5, pady=5)
         self.__boutonModePvP = Button(self, text='PvP mode', command=self.modePvP).pack(side=LEFT, padx=5, pady=5)
-        self.__boutonModePvM = Button(self, text='PvM mode', command=self.modePvM).pack(side=LEFT, padx=5, pady=5)
+        self.__boutonModeClassicPvM = Button(self, text='Classic PvM mode', command=self.mode_classic_PvM).pack(side=LEFT, padx=5, pady=5)
+        self.__boutonModeNNPvM = Button(self, text='NN PvM mode', command=self.mode_NN_PvM).pack(side=LEFT, padx=5,pady=5)
         self.__boutonTrainNN = Button(self, text='Train NN', command=self.trainNN).pack(side=LEFT, padx=5, pady=5)
         self.__boutonExit = Button(self, text='Exit', command=self.exit).pack(side=LEFT, padx=5, pady=5)
 
@@ -87,7 +95,7 @@ class FenPrincipale(Tk):
         self.__real_player_sign = self.__last_sign
 
         #initialization of the mode (PvP or PvM)
-        self.__mode = "PvP"
+        self.__mode = "classic_PvM"
 
         self.__nn = neural_network_class.NeuralNetwork()
 
@@ -101,7 +109,7 @@ class FenPrincipale(Tk):
         self.destroy()
     def play(self):
         self.choose_sign()
-        if self.__mode == "PvM":
+        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
             self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
@@ -112,7 +120,7 @@ class FenPrincipale(Tk):
         self.__instructions.config(text=instruction_text)
     def new_game(self):
         self.choose_sign()
-        if self.__mode == "PvM":
+        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
             self.__real_player_sign = self.__last_sign
         if self.__mode == "PvP":
             instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
@@ -123,7 +131,7 @@ class FenPrincipale(Tk):
             button.config(state=NORMAL)
         for elt in self.__list_signs:
             if type(elt) == list:
-                for line in elt :
+                for line in elt:
                     self.__zoneAffichage.delete(line)
             else:
                 self.__zoneAffichage.delete(elt)
@@ -147,7 +155,7 @@ class FenPrincipale(Tk):
         if self.__mode == "PvP":
             self.next_turn_PvP()
         else :
-            self.next_turn_PvM()
+            self.next_turn_PvM(self.__mode)
 
     def next_turn_PvP(self):
         if self.is_won():
@@ -158,7 +166,7 @@ class FenPrincipale(Tk):
         else:
             self.__instructions.config(text="Well played, player {} it's your turn".format(self.__last_sign))
 
-    def next_turn_PvM(self):
+    def next_turn_PvM(self,mode):
         if self.is_won():
             self.victory()
 
@@ -177,15 +185,13 @@ class FenPrincipale(Tk):
                 self.__instructions.config(text="Please wait for the IA to play")
                 for button in self.__buttons:
                     button.config(state=DISABLED)
-                self.IA_turn()
+                if mode == "classic_PvM":
+                    self.almost_IA_turn()
+                else :
+                    self.IA_turn()
 
-    def IA_turn(self):
+    def almost_IA_turn(self):
         if len(self.__list_index_signs) < 9:
-            """
-            i = np.random.randint(0,9)
-            while i in self.__list_index_signs:
-                i = np.random.randint(0, 9)
-            """
             #get the critical squre to play
             i = self.look_around()
             #if no 2 square aligned for player or for IA, play randomly
@@ -195,13 +201,18 @@ class FenPrincipale(Tk):
                     i = np.random.randint(0, 9)
             #else, stop the player or win the game
             else:
-                print("Incredible")
-
-
-            #i = self.__nn.predict_square(np.array(self.list_square_to_input()))
+                print("Smart move")
             time.sleep(0.5)
+            self.draw_sign(i)
+            self.next_turn()
+        else:
+            print("error,board full")
 
-
+    def IA_turn(self):
+        if len(self.__list_index_signs) < 9:
+            i = self.__nn.predict_square(np.array(self.list_square_to_input()))
+            print("IA predict : ", i)
+            time.sleep(0.5)
             self.draw_sign(i)
             self.next_turn()
         else:
@@ -216,80 +227,118 @@ class FenPrincipale(Tk):
         and then choose the more critical square by giving priority to the defense better than to the attack.
         The function returns then the index of the square that IA should play.
         """
-
         #defining the IA sign
         if self.__real_player_sign == "circle":
             IA_sign = -1 # "cross"
         else:
             IA_sign = 1 #"circle"
-
         list_sign_to_play = []
-
         #list of the sign convert to -1 0 and 1
         list_signs = self.list_square_to_input(self.__list_index_signs)
-
         # for the 3 lines
         for i in range(0,len(self.__list_index_signs),3):
             if self.unique_sign(list_signs[i:i+3]):#if the squares include similar signs or are empty
                 j = self.position_empty_square(list_signs[i:i+3])
-                list_sign_to_play.append(j+i)
-                if list_signs[i] == IA_sign :
-                    list_sign_to_play.append("Attacking")
-                else:
-                    list_sign_to_play.append("Defending")
+                if j != -1:
+                    list_sign_to_play.append(j+i)
+                    # check the sign of a non null square
+                    if j == 0:
+                        sign = list_signs[i+1]
+                    else:
+                        sign = list_signs[i]
+                    # add the kind of situation of the 3 aligned squares
+                    if sign == IA_sign :
+                        list_sign_to_play.append("Attacking")
+                    else:
+                        list_sign_to_play.append("Defending")
+                    print("Critical square : ")
+                    print(list_sign_to_play[-2:])
         # for the 3 columns
         for i in range(3):
             sub_list_signs = [list_signs[i],list_signs[i+3],list_signs[i+6]]
             if self.unique_sign(sub_list_signs):
                 j = self.position_empty_square(sub_list_signs)
-                list_sign_to_play.append(i+[0,3,6][j])
-                if list_signs[i] == IA_sign:
+                if j != -1:
+                    list_sign_to_play.append(i+[0,3,6][j])
+                    #check the sign of a non null square
+                    if j == 0:
+                        sign = list_signs[i+3]
+                    else:
+                        sign = list_signs[i]
+                    # add the kind of situation of the 3 aligned squares
+                    if sign == IA_sign:
+                        list_sign_to_play.append("Attacking")
+                    else:
+                        list_sign_to_play.append("Defending")
+                    print("Critical square : ")
+                    print(list_sign_to_play[-2:])
+        #for diagonals
+        diag1 = [2,4,6]
+        signs_diag1 = [list_signs[k] for k in diag1]
+        if self.unique_sign(signs_diag1):
+            j = self.position_empty_square(signs_diag1)
+            if j != -1:
+                list_sign_to_play.append(diag1[j])
+                # check the sign of a non null square
+                if j == 0:
+                    sign = list_signs[diag1[1]]
+                else:
+                    sign = list_signs[diag1[0]]
+                # add the kind of situation of the 3 aligned squares
+                if sign == IA_sign:
                     list_sign_to_play.append("Attacking")
                 else:
                     list_sign_to_play.append("Defending")
-
-        #for diagonals
-        diag1 = [2,4,6]
-        if self.unique_sign(diag1):
-            j = self.position_empty_square(diag1)
-            list_sign_to_play.append(diag1[j])
-            if list_signs[diag1[0]] == IA_sign:
-                list_sign_to_play.append("Attacking")
-            else:
-                list_sign_to_play.append("Defending")
-
-
-        diag2 = [1, 5, 9]
-        if self.unique_sign(diag2):
-            j = self.position_empty_square(diag2)
-            list_sign_to_play.append(diag2[j])
-            if list_signs[diag2[0]] == IA_sign:
-                list_sign_to_play.append("Attacking")
-            else:
-                list_sign_to_play.append("Defending")
-
-
+                print("Critical square : ")
+                print(list_sign_to_play[-2:])
+        diag2 = [0, 4, 8]
+        signs_diag2 = [list_signs[k] for k in diag2]
+        if self.unique_sign(signs_diag2):
+            j = self.position_empty_square(signs_diag2)
+            if j != -1:
+                list_sign_to_play.append(diag2[j])
+                # check the sign of a non null square
+                if j == 0:
+                    sign = list_signs[diag2[1]]
+                else:
+                    sign = list_signs[diag2[0]]
+                #add the kind of situation of the 3 aligned squares
+                if sign == IA_sign:
+                    list_sign_to_play.append("Attacking")
+                else:
+                    list_sign_to_play.append("Defending")
+                print("Critical square : ")
+                print(list_sign_to_play[-2:])
         # we now have the list of critical squares and the information, filled in this square is
         # a defense strategy or an attack strategy, we must choose the more critical one
-
         if len(list_sign_to_play) == 0:
+            print("No free square")
             return -1
         elif len(list_sign_to_play) == 2:
+            print("one free square : ", list_sign_to_play)
             return list_sign_to_play[0]
         else:
-            if "Defending" not in list_sign_to_play:
+            if "Attacking" not in list_sign_to_play:
+                print("Square defended : ", list_sign_to_play[0:2])
                 return list_sign_to_play[0]
             else:
-                return list_sign_to_play[list_sign_to_play.index("Defending")-1]
+                print("Square attacked : ", list_sign_to_play[list_sign_to_play.index("Attacking")-1:list_sign_to_play.index("Attacking")+1])
+                return list_sign_to_play[list_sign_to_play.index("Attacking")-1]
+
 
     def unique_sign(self,list):
+        #check if on the variable list there are only signs with the same symbol or empty square.
         sign = list[0]
-        for elt in list:
-            if elt != 0 and elt != sign:
+        for i in range(1,len(list)):
+            if list[i] != 0 and list[i] != sign :
                 return False
         return True
 
     def position_empty_square(self,list):
+        """
+        If there are more than one or no empty squares among the 3 squares defined by list
+        the function returns -1, else it returns the index of the empty square.
+        """
         nb_null = 0
         for elt in list:
             if elt == 0:
@@ -299,12 +348,11 @@ class FenPrincipale(Tk):
         else:#une unique case vide, on renvoie son index
             return list.index(0)
 
-
     def trainNN(self):
         self.__nn.train_neural_network()
 
     def victory(self):
-        if self.__mode == "PvM":
+        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
             if self.__last_sign == self.__real_player_sign:
                 self.__instructions.config(text="You lose, try again")
                 data = {}
@@ -327,7 +375,7 @@ class FenPrincipale(Tk):
 
     def board_full(self):
         self.__instructions.config(text="The board is full, please start a new game !")
-        if self.__mode == "PvM":
+        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
             data = {}
             data["board_values"] = self.list_square_to_input()
             data["end_state"] = "null"
@@ -387,8 +435,12 @@ class FenPrincipale(Tk):
         self.__mode = "PvP"
         self.__gameMode.config(text="Game mode : {}".format(self.__mode))
 
-    def modePvM(self):
-        self.__mode = "PvM"
+    def mode_classic_PvM(self):
+        self.__mode = "classic_PvM"
+        self.__gameMode.config(text="Game mode : {}".format(self.__mode))
+
+    def mode_NN_PvM(self):
+        self.__mode = "NN_PvM"
         self.__gameMode.config(text="Game mode : {}".format(self.__mode))
 
     def list_square_to_input(self,input=[]):
