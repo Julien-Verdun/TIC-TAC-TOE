@@ -20,6 +20,11 @@ Sauvegarde pour chaque mouvement :
 - du résultat finale appliqué à la fin de la partie à chaque ligne issues de la partie
 
 
+attendre la fin de la partie avant de les enregistrer pour donner le resultat
+
+Mettre en place un index et un sous index dans les JSON pour suivre les parties
+Verifier qu'on enregistre aussi les mouvements du joueur.
+
 """
 
 
@@ -29,7 +34,9 @@ import random
 import numpy as np
 from time import sleep
 import time
-import neural_network as neural_network_class
+import game_recorder as game_recorder
+from constantes import *
+
 
 
 global t0,t1
@@ -37,9 +44,7 @@ t0 = time.time()
 t1 = time.time()
 # --------------------------------------------------------
 
-global width, height
-width = 400
-height = 400
+
 
 class ZoneAffichage(Canvas):
     def __init__(self, parent, w=width, h=height, _bg='white'):
@@ -61,11 +66,7 @@ class FenPrincipale(Tk):
         self.__instructions.pack(side=TOP)
         self.__instructions.config(text="Welcome on board, please start the game !")
 
-        self.__gameMode = Label(self)
-        self.__gameMode.pack(side=TOP)
-        self.__gameMode.config(text="Game mode : classic_PvM")
-
-        self.title('TIC TAC TOE PLUS')
+        self.title('TIC TAC TOE PVM')
         self.__zoneAffichage = ZoneAffichage(self)
         self.__zoneAffichage.pack(padx=5, pady=5)
 
@@ -74,10 +75,6 @@ class FenPrincipale(Tk):
 
         self.__boutonPlay = Button(self, text='Play', command=self.play).pack(side=LEFT, padx=5, pady=5)
         self.__boutonNewGame = Button(self, text='New game', command=self.new_game).pack(side=LEFT, padx=5, pady=5)
-        self.__boutonModePvP = Button(self, text='PvP mode', command=self.modePvP).pack(side=LEFT, padx=5, pady=5)
-        self.__boutonModeClassicPvM = Button(self, text='Classic PvM mode', command=self.mode_classic_PvM).pack(side=LEFT, padx=5, pady=5)
-        self.__boutonModeNNPvM = Button(self, text='NN PvM mode', command=self.mode_NN_PvM).pack(side=LEFT, padx=5,pady=5)
-        self.__boutonTrainNN = Button(self, text='Train NN', command=self.trainNN).pack(side=LEFT, padx=5, pady=5)
         self.__boutonExit = Button(self, text='Exit', command=self.exit).pack(side=LEFT, padx=5, pady=5)
 
         self.__buttons = []
@@ -94,39 +91,31 @@ class FenPrincipale(Tk):
 
         self.__real_player_sign = self.__last_sign
 
-        #initialization of the mode (PvP or PvM)
-        self.__mode = "classic_PvM"
+        self.__depth = depth
 
-        self.__nn = neural_network_class.NeuralNetwork()
+        self.__list_turn_record = []
 
-        self.__game_recorder = neural_network_class.Game_recorder("record_games.JSON")
+        self.__game_recorder = game_recorder.Game_recorder("record_games.JSON")
 
+        self.__index = self.__game_recorder.get_index()
+
+        self.__sub_index = 0
         t1 = time.time()
         print("Time to run the game : ",t1-t0)
 
 
     def exit(self):
         self.destroy()
+
     def play(self):
         self.choose_sign()
-        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
-            self.__real_player_sign = self.__last_sign
+        self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
-        if self.__mode == "PvP":
-            instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
-        else:
-            instruction_text = "Let's play the game ! Your turn to play !"
-        self.__instructions.config(text=instruction_text)
     def new_game(self):
+        self.__index += 1
         self.choose_sign()
-        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
-            self.__real_player_sign = self.__last_sign
-        if self.__mode == "PvP":
-            instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
-        else:
-            instruction_text = "Let's play the game ! Your turn to play !"
-        self.__instructions.config(text = instruction_text)
+        self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
         for elt in self.__list_signs:
@@ -137,6 +126,8 @@ class FenPrincipale(Tk):
                 self.__zoneAffichage.delete(elt)
         self.__list_signs = []
         self.__list_index_signs = []
+        self.__instructions.config(text="New game, please start !")
+
     def draw_sign(self,i):
         x1 = (i - 3 * (i // 3)) * (height // 3) + 15
         y1 = (i // 3) * (width // 3) + 15
@@ -152,71 +143,200 @@ class FenPrincipale(Tk):
             self.__last_sign = "cross"
 
     def next_turn(self):
-        if self.__mode == "PvP":
-            self.next_turn_PvP()
-        else :
-            self.next_turn_PvM(self.__mode)
-
-    def next_turn_PvP(self):
+        self.add_turn_to_record()
+        self.__sub_index += 1
         if self.is_won():
             self.victory()
-
-        elif len(self.__list_signs) == 9:
-            self.__instructions.config(text="The board is full, please start a new game !")
-        else:
-            self.__instructions.config(text="Well played, player {} it's your turn".format(self.__last_sign))
-
-    def next_turn_PvM(self,mode):
-        if self.is_won():
-            self.victory()
-
+            self.add_turn_to_record()
         elif len(self.__list_signs) == 9:
             self.board_full()
 
         else:
             if self.__last_sign == self.__real_player_sign:
-                self.__instructions.config(text="Your turn to play")
+                self.__instructions.config(text="Let's play !")
                 for i in range(9):
                     if i in self.__list_index_signs :
                         self.__buttons[i].config(state=DISABLED) #est-ce necessaire
                     else:
                         self.__buttons[i].config(state=NORMAL)
             else:
-                self.__instructions.config(text="Please wait for the IA to play")
+                time.sleep(0.2)
                 for button in self.__buttons:
                     button.config(state=DISABLED)
-                if mode == "classic_PvM":
-                    self.almost_IA_turn()
-                else :
-                    self.IA_turn()
+                self.almost_IA_turn()
+                self.add_turn_to_record()
+
 
     def almost_IA_turn(self):
         if len(self.__list_index_signs) < 9:
             #get the critical squre to play
-            i = self.look_around()
+            #j = self.look_around()
+            j = self.look_depth(self.__depth)
+            #print("IA choose index : ", j)
             #if no 2 square aligned for player or for IA, play randomly
-            if i == -1:
+            if j == -1:
                 i = np.random.randint(0, 9)
                 while i in self.__list_index_signs:
                     i = np.random.randint(0, 9)
             #else, stop the player or win the game
             else:
-                print("Smart move")
+                #print("Smart move")
+                i = j
             time.sleep(0.5)
             self.draw_sign(i)
             self.next_turn()
         else:
             print("error,board full")
 
-    def IA_turn(self):
-        if len(self.__list_index_signs) < 9:
-            i = self.__nn.predict_square(np.array(self.list_square_to_input()))
-            print("IA predict : ", i)
-            time.sleep(0.5)
-            self.draw_sign(i)
-            self.next_turn()
-        else:
-            print("error,board full")
+    def look_depth(self,depth):
+        """
+        Return the index of the next square that the IA should play based on the
+        computation of a score for each square.
+        Depending on the depth given in parameter, the index of the returned square can be
+        randomly returned, computed with the available next IA moves, or even with the IA and player moves.
+        """
+        if depth == 0:
+            return -1
+        elif depth == 1:
+            grid = self.list_square_to_input() # grid translated by a 9 length vector with -1 for x 1 for o and 0 for empty squares
+            score_list = self.min_max(grid)
+            if np.max(score_list) == 0 and len(np.where(np.array(score_list) == 0)[0]) > 6:
+                return -1
+            return np.argmax(score_list)
+        else :
+            print("Error with the depth asked")
+            return self.look_depth(1)
+
+    def min_max(self,grid):
+        score_list = [0 for k in range(9)]
+        for i in range(9):
+            if grid[i] != 0: # if IA can't play this square : bad score
+                score_list[i] = full_square
+            else: # if square empty
+                grid_modif = np.copy(grid)
+                if self.__real_player_sign == "circle":
+                    # if player have circles (1) then IA have crosses (-1)
+                    grid_modif[i] = -1
+                    IA_sign = -1
+                else:
+                    # if player have crosses (-1) then IA have circles (1)
+                    grid_modif[i] = 1
+                    IA_sign = 1
+                score = self.score_grid(grid_modif,IA_sign)
+                score_list[i] = score
+        print("List of score : ", score_list)
+        return score_list
+
+    def score_grid(self,grid,IA_sign):
+        """
+        This function takes a grid (list of 9 numbers -1 and 1 for player and IA and 0 for empty square),
+        the IA number is given by parameter IA_number, and returnsthe score regarding player_sign (-1 or 1).
+        """
+        score = 0
+        list_of_possibilites = self.build_list_of_possibilities(grid,IA_sign)
+        for i in range(0,len(list_of_possibilites),2):
+            if list_of_possibilites[i] == -1: #immediate_finish
+                score += 50
+            else: #2 aligned square
+                if list_of_possibilites[i+1] == "sign": #a possibility for IA
+                    score += next_victory
+                else: #possibility for player
+                    score += urgent_save
+
+        #print("Grid : ",grid)
+        #print("List of IA possible moves : ", list_of_possibilites)
+
+        return score
+
+
+    def build_list_of_possibilities(self,grid,IA_sign):
+        """
+        Take a grid and a player sign and return the list of all
+        possibilities that could be played by IA_sign.
+        """
+        list_sign_to_play = []
+        for i in range(0,len(grid),3):
+            if self.unique_sign(grid[i:i+3]):#if the squares include similar signs or are empty
+                j = self.position_empty_square(grid[i:i+3])
+                if j == -2 : #if 3 same squared aligned
+                    list_sign_to_play.append(-1)
+                    list_sign_to_play.append("immediate_finish")
+                elif j != -1: #if 2 squared aligned and an other empty (index j)
+                    list_sign_to_play.append(j+i)
+                    # check the sign of a non null square
+                    if j == 0:
+                        sign = grid[i+1]
+                    else:
+                        sign = grid[i]
+                    # add the kind of situation of the 3 aligned squares
+                    if sign == IA_sign:
+                        list_sign_to_play.append("sign")
+                    else:
+                        list_sign_to_play.append("other_sign")
+        # for the 3 columns
+        for i in range(3):
+            sub_list_signs = [grid[i],grid[i+3],grid[i+6]]
+            if self.unique_sign(sub_list_signs):
+                j = self.position_empty_square(sub_list_signs)
+                print("j = ",j)
+                if j == -2 :
+                    list_sign_to_play.append(-1)
+                    list_sign_to_play.append("immediate_finish")
+                elif j != -1:
+                    list_sign_to_play.append(i+[0,3,6][j])
+                    #check the sign of a non null square
+                    if j == 0:
+                        sign = grid[i+3]
+                    else:
+                        sign = grid[i]
+                    # add the kind of situation of the 3 aligned squares
+                    if sign == IA_sign:
+                        list_sign_to_play.append("sign")
+                    else:
+                        list_sign_to_play.append("other_sign")
+        #for diagonals
+        diag1 = [2,4,6]
+        signs_diag1 = [grid[k] for k in diag1]
+        if self.unique_sign(signs_diag1):
+            j = self.position_empty_square(signs_diag1)
+            if j == -2:
+                list_sign_to_play.append(-1)
+                list_sign_to_play.append("immediate_finish")
+            elif j != -1:
+                list_sign_to_play.append(diag1[j])
+                # check the sign of a non null square
+                if j == 0:
+                    sign = grid[diag1[1]]
+                else:
+                    sign = grid[diag1[0]]
+                # add the kind of situation of the 3 aligned squares
+                if sign == IA_sign:
+                    list_sign_to_play.append("sign")
+                else:
+                    list_sign_to_play.append("other_sign")
+
+        diag2 = [0, 4, 8]
+        signs_diag2 = [grid[k] for k in diag2]
+        if self.unique_sign(signs_diag2):
+            j = self.position_empty_square(signs_diag2)
+            if j == -2:
+                list_sign_to_play.append(-1)
+                list_sign_to_play.append("immediate_finish")
+            elif j != -1:
+                list_sign_to_play.append(diag2[j])
+                # check the sign of a non null square
+                if j == 0:
+                    sign = grid[diag2[1]]
+                else:
+                    sign = grid[diag2[0]]
+                # add the kind of situation of the 3 aligned squares
+                if sign == IA_sign:
+                    list_sign_to_play.append("sign")
+                else:
+                    list_sign_to_play.append("other_sign")
+        return list_sign_to_play
+
+
 
     def look_around(self):
         """
@@ -234,7 +354,7 @@ class FenPrincipale(Tk):
             IA_sign = 1 #"circle"
         list_sign_to_play = []
         #list of the sign convert to -1 0 and 1
-        list_signs = self.list_square_to_input(self.__list_index_signs)
+        list_signs = self.list_square_to_input()
         # for the 3 lines
         for i in range(0,len(self.__list_index_signs),3):
             if self.unique_sign(list_signs[i:i+3]):#if the squares include similar signs or are empty
@@ -339,47 +459,31 @@ class FenPrincipale(Tk):
         If there are more than one or no empty squares among the 3 squares defined by list
         the function returns -1, else it returns the index of the empty square.
         """
-        nb_null = 0
-        for elt in list:
-            if elt == 0:
-                nb_null += 1
-        if nb_null != 1:#si plus d'une case vide sur les trois
+        print(list)
+        list_null = np.where(np.array(list) == 0)[0]
+        print(list_null)
+        if len(list_null) == 0:  # si aucune case vide
+            return -2
+        elif len(list_null) == 1:  # si une case vide sur les trois
+            return list_null[0]
+            # return list.index(0)
+        else:  # plus d'une case vide (2 ou 3)
             return -1
-        else:#une unique case vide, on renvoie son index
-            return list.index(0)
 
-    def trainNN(self):
-        self.__nn.train_neural_network()
 
     def victory(self):
-        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
-            if self.__last_sign == self.__real_player_sign:
-                self.__instructions.config(text="You lose, try again")
-                data = {}
-                data["board_values"] = self.list_square_to_input()
-                data["end_state"] =  "IA_victory"
-                self.__game_recorder.add_game(data)
-            else:
-                self.__instructions.config(text="You won, congratulations !")
-                data = {}
-                data["board_values"] = self.list_square_to_input()
-                data["end_state"] = "Player_victory"
-                self.__game_recorder.add_game(data)
-        else :
-            if self.__last_sign == 'circle':
-                self.__instructions.config(text="Player CROSS, congratulations !! You won")
-            else:
-                self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
+        if self.__last_sign == self.__real_player_sign:
+            self.__instructions.config(text="You lose, try again")
+            self.record_data("IA_victory")
+        else:
+            self.__instructions.config(text="You won, congratulations !")
+            self.record_data("Player_victory")
         for button in self.__buttons:
             button.config(state=DISABLED)
 
     def board_full(self):
         self.__instructions.config(text="The board is full, please start a new game !")
-        if self.__mode == "classic_PvM" or self.__mode == "NN_PvM":
-            data = {}
-            data["board_values"] = self.list_square_to_input()
-            data["end_state"] = "null"
-            self.__game_recorder.add_game(data)
+        self.record_data("null")
 
     def is_won(self):
         if len(self.__list_signs) <= 4:
@@ -428,22 +532,26 @@ class FenPrincipale(Tk):
                     return True
         return False
 
+    def add_turn_to_record(self):
+        data = {}
+        data["index"] = self.__index # avec un index par partie et un sous index index par mouvement
+        data["sub_index"] = self.__sub_index
+        data["board_values"] = self.list_square_to_input()
+        if self.__last_sign == self.__real_player_sign:
+            data["player"] = "IA"
+        else:
+            data["player"] = "real_player"
+        self.__list_turn_record.append(data)
+
+    def record_data(self,result):
+        for data in self.__list_turn_record:
+            data["end_state"] = result
+            self.__game_recorder.add_game(data)
+
     def choose_sign(self):
         self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
 
-    def modePvP(self):
-        self.__mode = "PvP"
-        self.__gameMode.config(text="Game mode : {}".format(self.__mode))
-
-    def mode_classic_PvM(self):
-        self.__mode = "classic_PvM"
-        self.__gameMode.config(text="Game mode : {}".format(self.__mode))
-
-    def mode_NN_PvM(self):
-        self.__mode = "NN_PvM"
-        self.__gameMode.config(text="Game mode : {}".format(self.__mode))
-
-    def list_square_to_input(self,input=[]):
+    def list_square_to_input(self):
         """
         Take the list of squares fill in by a sign and create a 9x1
         array (input_layer for neural network) with values -1 for a cross,

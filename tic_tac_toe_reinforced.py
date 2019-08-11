@@ -8,11 +8,29 @@ Created on Sat Jul 27 18:14:23 2019
 """
 TO-DO LIST
 
-Choix aleatoire du joueur qui commence
+Reinforcement learning
+- on fait jouer aléatoirement une partie
+- chaque fois qu'on gagne une partie on récompense ?
 
-Possibilité de réinitialiser le plateau
 
-Menu joueur contre joueur et joueur contre IA
+
+
+
+
+
+
+Sauvegarde pour chaque mouvement :
+- du damier +1 0 -1
+- du prochain mouvement, signe et case
+- du résultat finale appliqué à la fin de la partie à chaque ligne issues de la partie
+
+
+Mettre en place un index et un sous index dans les JSON pour suivre les parties
+Verifier qu'on enregistre aussi les mouvements du joueur.
+
+
+
+
 """
 
 
@@ -20,7 +38,9 @@ from tkinter import *
 from tkinter.messagebox import *
 import random
 import numpy as np
+from time import sleep
 import time
+import neural_network_trained as neural_network_class
 
 
 global t0,t1
@@ -52,7 +72,8 @@ class FenPrincipale(Tk):
         self.__instructions.pack(side=TOP)
         self.__instructions.config(text="Welcome on board, please start the game !")
 
-        self.title('TIC TAC TOE')
+
+        self.title('TIC TAC TOE REINFORCED')
         self.__zoneAffichage = ZoneAffichage(self)
         self.__zoneAffichage.pack(padx=5, pady=5)
 
@@ -61,6 +82,7 @@ class FenPrincipale(Tk):
 
         self.__boutonPlay = Button(self, text='Play', command=self.play).pack(side=LEFT, padx=5, pady=5)
         self.__boutonNewGame = Button(self, text='New game', command=self.new_game).pack(side=LEFT, padx=5, pady=5)
+        self.__boutonTrainNN = Button(self, text='Train NN', command=self.trainNN).pack(side=LEFT, padx=5, pady=5)
         self.__boutonExit = Button(self, text='Exit', command=self.exit).pack(side=LEFT, padx=5, pady=5)
 
         self.__buttons = []
@@ -72,36 +94,42 @@ class FenPrincipale(Tk):
         self.__list_signs = []
         self.__list_index_signs = []
 
-        #initialization of the first sign to play
+        #initialization of the first sign to play (circle or cross)
         self.__last_sign = "circle"
+
+        self.__real_player_sign = self.__last_sign
+
+        self.__list_turn_record = []
+
+        self.__nn = neural_network_class.NeuralNetwork()
+
+        self.__game_recorder = neural_network_class.Game_recorder("record_games.JSON")
+
+        t1 = time.time()
+        print("Time to run the game : ",t1-t0)
+
 
     def exit(self):
         self.destroy()
     def play(self):
         self.choose_sign()
+        self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
-        instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
-        self.__instructions.config(text=instruction_text)
     def new_game(self):
         self.choose_sign()
-        instruction_text = "Let's play a new game ! Player " + self.__last_sign + " you start !"
-        self.__instructions.config(text = instruction_text)
+        self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
         for elt in self.__list_signs:
             if type(elt) == list:
-                for line in elt :
+                for line in elt:
                     self.__zoneAffichage.delete(line)
             else:
                 self.__zoneAffichage.delete(elt)
         self.__list_signs = []
         self.__list_index_signs = []
-
     def draw_sign(self,i):
-        """
-        Draw the next signs on the square number i.
-        """
         x1 = (i - 3 * (i // 3)) * (height // 3) + 15
         y1 = (i // 3) * (width // 3) + 15
         x2 = (i - 3 * (i // 3)) * (height // 3) + height // 3 - 10
@@ -116,21 +144,66 @@ class FenPrincipale(Tk):
             self.__last_sign = "cross"
 
     def next_turn(self):
+        self.add_turn_to_record()
         if self.is_won():
             self.victory()
 
         elif len(self.__list_signs) == 9:
-            self.__instructions.config(text="The board is full, please start a new game !")
+            self.board_full()
+
         else:
-            self.__instructions.config(text="Well played, player {} it's your turn".format(self.__last_sign))
+            if self.__last_sign == self.__real_player_sign:
+                self.__instructions.config(text="Your turn to play")
+                for i in range(9):
+                    if i in self.__list_index_signs :
+                        self.__buttons[i].config(state=DISABLED) #est-ce necessaire
+                    else:
+                        self.__buttons[i].config(state=NORMAL)
+            else:
+                self.__instructions.config(text="Please wait for the IA to play")
+                for button in self.__buttons:
+                    button.config(state=DISABLED)
+                self.IA_turn()
+        self.add_turn_to_record()
+
+    def IA_turn(self):
+        if len(self.__list_index_signs) < 9:
+            i = self.__nn.predict_square(np.array(self.list_square_to_input()))
+            print("IA predict : ", i)
+            time.sleep(0.5)
+            self.draw_sign(i)
+            self.next_turn()
+        else:
+            print("error,board full")
+
+    def trainNN(self):
+        self.__nn.train_neural_network()
 
     def victory(self):
-        if self.__last_sign == 'circle':
-            self.__instructions.config(text="Player CROSS, congratulations !! You won")
+        if self.__last_sign == self.__real_player_sign:
+            self.__instructions.config(text="You lose, try again")
+            """
+            data = {}
+            data["board_values"] = self.list_square_to_input()
+            data["end_state"] =  "IA_victory"
+            self.__game_recorder.add_game(data)
+            """
+            self.record_data("IA_victory")
         else:
-            self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
+            self.__instructions.config(text="You won, congratulations !")
+            """
+            data = {}
+            data["board_values"] = self.list_square_to_input()
+            data["end_state"] = "Player_victory"
+            self.__game_recorder.add_game(data)
+            """
+            self.record_data("Player_victory")
         for button in self.__buttons:
             button.config(state=DISABLED)
+
+    def board_full(self):
+        self.__instructions.config(text="The board is full, please start a new game !")
+        self.record_data("null")
 
     def is_won(self):
         if len(self.__list_signs) <= 4:
@@ -179,8 +252,45 @@ class FenPrincipale(Tk):
                     return True
         return False
 
+    def add_turn_to_record(self):
+        data = {}
+        #data["index"] = index + 1 # avec un index par partie et un sous index index par mouvement
+        data["board_values"] = self.list_square_to_input()
+        if self.__last_sign == self.__real_player_sign:
+            data["player"] = "IA"
+        else:
+            data["player"] = "real_player"
+        self.__list_turn_record.append(data)
+
+    def record_data(self,result):
+        index = self.__game_recorder.get_index()
+        i = 1
+        for data in self.__list_turn_record:
+            data["index"] = index
+            data["sub_index"] = i
+            data["end_state"] = result
+            self.__game_recorder.add_game(data)
+            i += 1
+
     def choose_sign(self):
         self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
+
+    def list_square_to_input(self,input=[]):
+        """
+        Take the list of squares fill in by a sign and create a 9x1
+        array (input_layer for neural network) with values -1 for a cross,
+        0 if empty square and 1 for a circle.
+        """
+        input_layer = [0 for k in range(9)]
+        for i in range(len(self.__list_signs)):
+            if type(self.__list_signs[i]) == list:
+                input_layer[self.__list_index_signs[i]] = -1
+            else:
+                input_layer[self.__list_index_signs[i]] = 1
+        return input_layer
+
+
+
 
 
 
@@ -197,6 +307,8 @@ class MonBoutton(Button):
         i = self.__pos
         self.fen.draw_sign(i)
         self.fen.next_turn()
+
+
 
 
 # --------------------------------------------------------

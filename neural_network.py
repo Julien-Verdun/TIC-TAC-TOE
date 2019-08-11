@@ -25,10 +25,6 @@ class NeuralNetwork:
         self.__hidden_layer = np.random.random((18, 1))
         self.__weight2 = np.random.random((18,9))
         self.__output_layer = np.random.random((9, 1))
-        """
-        self.__game_recorder = Game_recorder("record_games.JSON")
-        self.__weight_recorder = Game_recorder("record_weight.JSON")
-        """
         self.__NNtrainer = NeuralNetwork_trainer("record_games.JSON","record_weight.JSON")
     #GET methods
     def get_input_layer(self):
@@ -72,12 +68,15 @@ class NeuralNetwork:
 class Game_recorder:
     def __init__(self,record_games_file):
         self.__file_name = record_games_file
+        self.__index = self.read_index()
 
     def read_record_file(self):
         with open(self.__file_name) as f:
             data = [json.loads(line) for line in f]
         return data
-
+    def read_index(self):
+        data = self.read_record_file()
+        return data[-1]["end_state"] #index
     def add_game(self, data):
         with open(self.__file_name, "a") as json_file:
             json.dump(data, json_file)
@@ -86,6 +85,8 @@ class Game_recorder:
         with open(self.__file_name, "w") as json_file:
             json.dump(data, json_file, sort_keys = True, indent = 4,
                ensure_ascii = False)
+    def get_index(self):
+        return self.__index
 
 
 
@@ -100,8 +101,8 @@ class NeuralNetwork_trainer:
         self.__model.add(Dense(18, input_dim=9, activation='sigmoid'))
         self.__model.add(Dropout(0.95))
         # add an other hidden layer with 18 nodes
-        #self.__model.add(Dense(18, activation='relu'))
-        #self.__model.add(Dropout(0.95))
+        self.__model.add(Dense(18, activation='relu'))
+        self.__model.add(Dropout(0.95))
         # add the output layer
         self.__model.add(Dense(1, activation='sigmoid'))
 
