@@ -908,3 +908,13 @@
 {"index": 7, "sub_index": 13, "board_values": [-1, 0, 0, 1, 0, 1, -1, 0, 0], "player": "IA", "end_state": "IA_victory"}
 {"index": 7, "sub_index": 13, "board_values": [-1, 0, 0, 1, 0, 1, -1, 0, -1], "player": "real_player", "end_state": "IA_victory"}
 {"index": 7, "sub_index": 14, "board_values": [-1, 0, 0, 1, 1, 1, -1, 0, -1], "player": "IA", "end_state": "IA_victory"}
+{"index": 7, "sub_index": 0, "board_values": [-1, 0, 0, 0, 0, 0, 0, 0, 0], "player": "real_player", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 1, "board_values": [-1, 0, 0, 0, 0, 0, 0, 0, 1], "player": "IA", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 2, "board_values": [-1, 0, 0, 0, 0, 0, 0, 0, 1], "player": "IA", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 2, "board_values": [-1, 0, 0, 0, 0, 0, -1, 0, 1], "player": "real_player", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 3, "board_values": [-1, 0, 0, 1, 0, 0, -1, 0, 1], "player": "IA", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 4, "board_values": [-1, 0, 0, 1, 0, 0, -1, 0, 1], "player": "IA", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 4, "board_values": [-1, 0, -1, 1, 0, 0, -1, 0, 1], "player": "real_player", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 5, "board_values": [-1, 0, -1, 1, 1, 0, -1, 0, 1], "player": "IA", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 6, "board_values": [-1, 0, -1, 1, 1, 0, -1, 0, 1], "player": "IA", "end_state": "Player_victory"}
+{"index": 7, "sub_index": 6, "board_values": [-1, -1, -1, 1, 1, 0, -1, 0, 1], "player": "real_player", "end_state": "Player_victory"}

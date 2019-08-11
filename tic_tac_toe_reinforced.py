@@ -40,8 +40,8 @@ import random
 import numpy as np
 from time import sleep
 import time
-import neural_network_trained as neural_network_class
-
+import neural_network as neural_network_class
+import game_recorder
 
 global t0,t1
 t0 = time.time()
@@ -103,7 +103,11 @@ class FenPrincipale(Tk):
 
         self.__nn = neural_network_class.NeuralNetwork()
 
-        self.__game_recorder = neural_network_class.Game_recorder("record_games.JSON")
+        self.__game_recorder = game_recorder.Game_recorder("record_games.JSON")
+
+        self.__index = self.__game_recorder.get_index()
+
+        self.__sub_index = 0
 
         t1 = time.time()
         print("Time to run the game : ",t1-t0)
@@ -117,6 +121,7 @@ class FenPrincipale(Tk):
         for button in self.__buttons:
             button.config(state=NORMAL)
     def new_game(self):
+        self.__index += 1
         self.choose_sign()
         self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
@@ -145,6 +150,7 @@ class FenPrincipale(Tk):
 
     def next_turn(self):
         self.add_turn_to_record()
+        self.__sub_index += 1
         if self.is_won():
             self.victory()
 
@@ -165,6 +171,7 @@ class FenPrincipale(Tk):
                     button.config(state=DISABLED)
                 self.IA_turn()
         self.add_turn_to_record()
+        self.__sub_index += 1
 
     def IA_turn(self):
         if len(self.__list_index_signs) < 9:
@@ -182,21 +189,9 @@ class FenPrincipale(Tk):
     def victory(self):
         if self.__last_sign == self.__real_player_sign:
             self.__instructions.config(text="You lose, try again")
-            """
-            data = {}
-            data["board_values"] = self.list_square_to_input()
-            data["end_state"] =  "IA_victory"
-            self.__game_recorder.add_game(data)
-            """
             self.record_data("IA_victory")
         else:
             self.__instructions.config(text="You won, congratulations !")
-            """
-            data = {}
-            data["board_values"] = self.list_square_to_input()
-            data["end_state"] = "Player_victory"
-            self.__game_recorder.add_game(data)
-            """
             self.record_data("Player_victory")
         for button in self.__buttons:
             button.config(state=DISABLED)
@@ -254,7 +249,8 @@ class FenPrincipale(Tk):
 
     def add_turn_to_record(self):
         data = {}
-        #data["index"] = index + 1 # avec un index par partie et un sous index index par mouvement
+        data["index"] = self.__index
+        data["sub_index"] = self.__sub_index
         data["board_values"] = self.list_square_to_input()
         if self.__last_sign == self.__real_player_sign:
             data["player"] = "IA"
@@ -266,7 +262,7 @@ class FenPrincipale(Tk):
         index = self.__game_recorder.get_index()
         i = 1
         for data in self.__list_turn_record:
-            data["index"] = index
+            data["index"] = self.__index
             data["sub_index"] = i
             data["end_state"] = result
             self.__game_recorder.add_game(data)

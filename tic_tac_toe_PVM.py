@@ -165,6 +165,7 @@ class FenPrincipale(Tk):
                     button.config(state=DISABLED)
                 self.almost_IA_turn()
                 self.add_turn_to_record()
+                self.__sub_index += 1
 
 
     def almost_IA_turn(self):
@@ -534,7 +535,7 @@ class FenPrincipale(Tk):
 
     def add_turn_to_record(self):
         data = {}
-        data["index"] = self.__index # avec un index par partie et un sous index index par mouvement
+        data["index"] = self.__index
         data["sub_index"] = self.__sub_index
         data["board_values"] = self.list_square_to_input()
         if self.__last_sign == self.__real_player_sign:
