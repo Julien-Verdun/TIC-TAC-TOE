@@ -27,7 +27,7 @@ The script of this version is included in the python file "tic_tac_toe_PVP.py".
 
 In this version, the basic elements of the game are programming and allow players to play in a PvP mode (Player versus Player).
 
-
+![demo_PvP_version](image/tic_tac_toe_PvP.PNG)
 
 ## The PVM version
 
@@ -38,6 +38,8 @@ Basically, it computes a score for each square, depending on the combinations wi
 
 
 There is no real intelligence on this version, the IA doesn't predict or anticipate anything, it can only win or blocks the opponent when one has already 2 aligned squares.
+
+![demo_PvM_version](image/tic_tac_toe_PvM.PNG)
 
 
 ## The NN version
