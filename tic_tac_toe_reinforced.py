@@ -8,28 +8,17 @@ Created on Sat Jul 27 18:14:23 2019
 """
 TO-DO LIST
 
+Tout changer pour fixer les ronds au joueur et les croix à l'IA, et ensuite 1 au joueur et -1 
+à l'IA ou l'inverse, pour que l'IA apprenne toujours avec les mêmes données
+
+Regarder comment donner plus de poids aux bons jeux et pénaliser les mauvais, comme quand deux fois la même touche est activé. 
+Comment prendre en compte le score dans l'apprentissage des données ?
+
+
+
 Reinforcement learning
 - on fait jouer aléatoirement une partie
 - chaque fois qu'on gagne une partie on récompense ?
-
-
-
-
-
-
-
-
-Sauvegarde pour chaque mouvement :
-- du damier +1 0 -1
-- du prochain mouvement, signe et case
-- du résultat finale appliqué à la fin de la partie à chaque ligne issues de la partie
-
-
-Mettre en place un index et un sous index dans les JSON pour suivre les parties
-Verifier qu'on enregistre aussi les mouvements du joueur.
-
-
-
 
 """
 
@@ -94,7 +83,7 @@ class FenPrincipale(Tk):
         self.__list_signs = []
         self.__list_index_signs = []
 
-        #initialization of the first sign to play (circle or cross)
+        #initialization of the first sign to play (circle for player and cross for IA)
         self.__last_sign = "circle"
 
         self.__real_player_sign = self.__last_sign
@@ -115,14 +104,17 @@ class FenPrincipale(Tk):
 
     def exit(self):
         self.destroy()
+
     def play(self):
-        self.choose_sign()
+        #self.choose_sign()
+        self.__last_sign = "circle"
         self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
+
     def new_game(self):
-        self.__index += 1
-        self.choose_sign()
+        #self.choose_sign()
+        self.__last_sign = "circle"
         self.__real_player_sign = self.__last_sign
         for button in self.__buttons:
             button.config(state=NORMAL)
@@ -134,6 +126,7 @@ class FenPrincipale(Tk):
                 self.__zoneAffichage.delete(elt)
         self.__list_signs = []
         self.__list_index_signs = []
+
     def draw_sign(self,i):
         x1 = (i - 3 * (i // 3)) * (height // 3) + 15
         y1 = (i // 3) * (width // 3) + 15
@@ -149,7 +142,7 @@ class FenPrincipale(Tk):
             self.__last_sign = "cross"
 
     def next_turn(self):
-        self.add_turn_to_record()
+        self.add_turn_to_record("player",self.__list_index_signs[-1])
         self.__sub_index += 1
         if self.is_won():
             self.victory()
@@ -170,12 +163,15 @@ class FenPrincipale(Tk):
                 for button in self.__buttons:
                     button.config(state=DISABLED)
                 self.IA_turn()
-        self.add_turn_to_record()
+        self.add_turn_to_record("IA",self.__list_index_signs[-1])
         self.__sub_index += 1
 
     def IA_turn(self):
         if len(self.__list_index_signs) < 9:
-            i = self.__nn.predict_square(np.array(self.list_square_to_input()))
+            list_index = self.__nn.predict_square(np.array(self.list_square_to_input()))
+            #list_index = self.__nn.predict_output(np.array(self.list_square_to_input()))
+            print("Output : ",list_index)
+            i = np.argmax(list_index)
             print("IA predict : ", i)
             time.sleep(0.5)
             self.draw_sign(i)
@@ -247,30 +243,40 @@ class FenPrincipale(Tk):
                     return True
         return False
 
-    def add_turn_to_record(self):
+    def add_turn_to_record(self,camp,index_played):
         data = {}
         data["index"] = self.__index
         data["sub_index"] = self.__sub_index
         data["board_values"] = self.list_square_to_input()
-        if self.__last_sign == self.__real_player_sign:
-            data["player"] = "IA"
-        else:
-            data["player"] = "real_player"
+        data["board_values"] = self.list_square_to_input()
+        data["player"] = camp
+        data["score"] = 0
+        data["index_played"] = int(index_played)
         self.__list_turn_record.append(data)
 
     def record_data(self,result):
-        index = self.__game_recorder.get_index()
+        self.__index = self.__game_recorder.get_index() + 1
         i = 1
         for data in self.__list_turn_record:
             data["index"] = self.__index
             data["sub_index"] = i
+            if data["player"] == "IA" and result == "IA_victory":
+                data["score"] = 10
+            elif data["player"] == "IA" and result == "Player_victory":
+                data["score"] = -10
+            elif data["player"] == "player" and result == "IA_victory":
+                data["score"] = -10
+            elif data["player"] == "player" and result == "Player_victory":
+                data["score"] = 10
+            else :
+                data["score"] = 0
             data["end_state"] = result
             self.__game_recorder.add_game(data)
             i += 1
-
+    """
     def choose_sign(self):
         self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
-
+    """
     def list_square_to_input(self,input=[]):
         """
         Take the list of squares fill in by a sign and create a 9x1

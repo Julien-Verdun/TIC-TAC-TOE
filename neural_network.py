@@ -26,6 +26,7 @@ class NeuralNetwork:
         self.__weight2 = np.random.random((18,9))
         self.__output_layer = np.random.random((9, 1))
         self.__NNtrainer = NeuralNetwork_trainer("record_games.JSON","record_weight.JSON")
+        self.load_weight()
     #GET methods
     def get_input_layer(self):
         return self.__input_layer
@@ -41,11 +42,17 @@ class NeuralNetwork:
     #Computing the layers
     def comput_hidden_layer(self):
         self.__hidden_layer = sigmoid(np.transpose(self.__input_layer).dot(self.__weight1))
-    def comput_output_layer(self):
-        self.__hidden_layer = sigmoid(self.__hidden_layer.dot(self.__weight2))
-    def comput_next_square(self):
-        return np.argmax(self.__output_layer)
+        return self.__hidden_layer
 
+    def comput_output_layer(self):
+        self.__output_layer = sigmoid(self.__hidden_layer.dot(self.__weight2))
+        return self.__output_layer
+
+    def comput_next_square(self):
+        return self.__output_layer#np.argmax(self.__output_layer)
+
+    def load_weight(self):
+        self.__weight1, self.__weight2 = self.__NNtrainer.get_weights()
 
     #prediction with trained neural network
     def predict_square(self,input):
@@ -55,12 +62,13 @@ class NeuralNetwork:
         output_square = self.comput_next_square()
         return output_square
     def predict_output(self,input):
-        self.__NNtrainer.predict(input)
+        return self.__NNtrainer.predict(input)
 
     def train_neural_network(self):
         t0 = time.time()
         self.__NNtrainer.train_neural_network()
         t1 = time.time()
+        self.load_weight()
         print("Time to train the neural network : ", t1-t0)
 
 
@@ -77,10 +85,10 @@ class NeuralNetwork_trainer:
         self.__model.add(Dense(18, input_dim=9, activation='sigmoid'))
         self.__model.add(Dropout(0.95))
         # add an other hidden layer with 18 nodes
-        self.__model.add(Dense(18, activation='relu'))
-        self.__model.add(Dropout(0.95))
+        #self.__model.add(Dense(18, activation='relu'))
+        #self.__model.add(Dropout(0.95))
         # add the output layer
-        self.__model.add(Dense(1, activation='sigmoid'))
+        self.__model.add(Dense(9, activation='sigmoid'))
 
 
     def get_games(self):
@@ -88,6 +96,12 @@ class NeuralNetwork_trainer:
         Return the games set, in JSON format, by calling the Game_recorder class.
         """
         return self.__game_recorder.read_record_file()
+
+    def get_weights(self):
+        weights = self.__weight_recorder.read_record_file()
+        print(weights)
+        return weights[0]["weight1"],weights[0]["weight2"]
+
     def games_to_list_of_data(self,games):
         """
         Turn the games JSON variable into the list of board_value and end_state.
@@ -95,17 +109,22 @@ class NeuralNetwork_trainer:
         # list of the lists of values of each square
         board_values_list = np.zeros((len(games), 9))
         # list of the result of the game
-        end_state_list = np.zeros(len(games))
+        end_state_list = np.zeros((len(games),9))
 
         for i in range(len(games)):
-            board_values_list[i][:] = np.array(games[i]["board_values"])
-            if games[i]["end_state"] == "IA_victory":
-                end_state_list[i] = 1
-            elif games[i]["end_state"] == "Player_victory":
-                end_state_list[i] = -1
-            else:
-                end_state_list[i] = 0
+            if games[i]["score"] >= 0:
+                end_state = np.zeros(9)
+                end_state[games[i]["index_played"]] = 1
+                board_values_list[i][:] = np.array(games[i]["board_values"])
+                end_state_list[i][:] = end_state
+                #if games[i]["end_state"] == "IA_victory":
+                #    end_state_list[i] = 1
+                #elif games[i]["end_state"] == "Player_victory":
+                #    end_state_list[i] = -1
+                #else:
+                #    end_state_list[i] = 0
         return board_values_list,end_state_list
+
     def data_to_train_test(self,board_values_list,end_state_list,rate_set = 0.8):
         """
         Take both the list of all board values (included in board_values_list)
@@ -140,12 +159,16 @@ class NeuralNetwork_trainer:
         print('test accuracy: ', acc)
 
         weights = self.__model.get_weights()
+        print("weights : ")
+        print(weights)
 
         [weight1,hidden_layer1,weight2,output_layer] = weights
 
         data = {}
         data["weight1"]  = weight1.tolist()
         data["weight2"] =  weight2.tolist()
+        print(weight2.tolist())
+        #data["weight3"] = weight3.tolist()
         self.__weight_recorder.write_game(data)
 
         print('Neural Network train')
