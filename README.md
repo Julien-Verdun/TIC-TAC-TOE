@@ -42,11 +42,26 @@ There is no real intelligence on this version, the IA doesn't predict or anticip
 ![demo_PvM_version](image/tic_tac_toe_PvM.PNG)
 
 
-## The NN version
+
+## The reinforced version
 
 The script of this version is included in the python file "tic_tac_toe_reinforced.py".
 
-This version includes a PvM mode (Player versus Monster). The IA which controls the player's opponent includes a Neural Network and is trained by Reinforcement Learning in order to give him the ability to anticipate the player's moves and to built a solid and efficient strategy to win the games.
+This version includes a PvM mode (Player versus Monster). The IA which controls the player's opponent is trained by **Reinforcement Learning** in order to give him the ability to anticipate the player's moves and to built a solid and efficient strategy to win the games.
+
+The intelligence of the IA is based on the **Q-learning method**. 
+- A reward matrix R is built : 
+    - each line embodies a state of the tic-tac-toe grid, i-e an allowed placements of circles and crosses. There is a huge number of those placements which is counted below.
+    - each column embodies an actions  for the IA. There are 9 different actions per turn which correspond to the 9 squares of the grid.
+    - for a given couple (state,action), the matrix contains a score that inform whether the IA should make the action or not. The reward given to the IA are such as :
+        * winning the game gives a great reward : 100 
+        * losing a game gives a bad reward : -10
+        * defending and preventing a game from the defeat gives an average reward : 10
+        * otherwise the reward is : -1
+    
+
+Then, we compute the optimal Q matrix this way.
+
 
 
 

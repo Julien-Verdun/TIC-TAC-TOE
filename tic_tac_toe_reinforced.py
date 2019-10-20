@@ -31,6 +31,7 @@ from time import sleep
 import time
 import neural_network as neural_network_class
 import game_recorder
+from utils import functions as fct
 
 global t0,t1
 t0 = time.time()
@@ -309,6 +310,7 @@ class MonBoutton(Button):
         i = self.__pos
         self.fen.draw_sign(i)
         self.fen.next_turn()
+
 
 
 
