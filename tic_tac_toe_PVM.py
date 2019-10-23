@@ -4,38 +4,14 @@ Created on Sat Jul 27 18:14:23 2019
 @author: Julien Verdun
 """
 
-
-"""
-TO-DO LIST
-
-Choix aleatoire du joueur qui commence
-
-
-Entrainement de l'IA : trouver comment générer et sous quelle forme générer les données d'apprentissage
-
-Modifier les données sauvegardées afin d'avoir des données exploitables pour l'entrainement
-Sauvegarde pour chaque mouvement :
-- du damier +1 0 -1
-- du prochain mouvement, signe et case
-- du résultat finale appliqué à la fin de la partie à chaque ligne issues de la partie
-
-
-attendre la fin de la partie avant de les enregistrer pour donner le resultat
-
-Mettre en place un index et un sous index dans les JSON pour suivre les parties
-Verifier qu'on enregistre aussi les mouvements du joueur.
-
-"""
-
-
 from tkinter import *
 from tkinter.messagebox import *
 import random
 import numpy as np
 from time import sleep
 import time
-import game_recorder as game_recorder
 from constantes import *
+from utils import functions as fct
 
 
 
@@ -93,13 +69,6 @@ class FenPrincipale(Tk):
 
         self.__depth = depth
 
-        self.__list_turn_record = []
-
-        self.__game_recorder = game_recorder.Game_recorder("record_games.JSON")
-
-        self.__index = self.__game_recorder.get_index()
-
-        self.__sub_index = 0
         t1 = time.time()
         print("Time to run the game : ",t1-t0)
 
@@ -110,23 +79,18 @@ class FenPrincipale(Tk):
     def play(self):
         self.choose_sign()
         self.__real_player_sign = self.__last_sign
-        for button in self.__buttons:
-            button.config(state=NORMAL)
+        self.normal_buttons()
     def new_game(self):
-        self.__index += 1
-        self.choose_sign()
-        self.__real_player_sign = self.__last_sign
-        for button in self.__buttons:
-            button.config(state=NORMAL)
+        self.play()
         for elt in self.__list_signs:
             if type(elt) == list:
                 for line in elt:
                     self.__zoneAffichage.delete(line)
             else:
                 self.__zoneAffichage.delete(elt)
+        self.__instructions.config(text="New game, please start !")
         self.__list_signs = []
         self.__list_index_signs = []
-        self.__instructions.config(text="New game, please start !")
 
     def draw_sign(self,i):
         x1 = (i - 3 * (i // 3)) * (height // 3) + 15
@@ -135,22 +99,18 @@ class FenPrincipale(Tk):
         y2 = (i // 3) * (width // 3) + width // 3 - 10
         if self.__last_sign == 'cross':
             self.__list_signs.append([self.__zoneAffichage.create_line(x1, y1, x2, y2, fill="red", width=4),self.__zoneAffichage.create_line(x1, y2, x2, y1, fill="red", width=4)])
-            self.__list_index_signs.append(i)
             self.__last_sign = "circle"
         elif self.__last_sign == 'circle':
             self.__list_signs.append(self.__zoneAffichage.create_oval(x1, y1, x2, y2, outline="green", width=4))
-            self.__list_index_signs.append(i)
             self.__last_sign = "cross"
+        self.__list_index_signs.append(i)
+        return
 
     def next_turn(self):
-        self.add_turn_to_record()
-        self.__sub_index += 1
-        if self.is_won():
+        if fct.is_won(self.__list_signs,self.__list_index_signs):
             self.victory()
-            self.add_turn_to_record()
         elif len(self.__list_signs) == 9:
             self.board_full()
-
         else:
             if self.__last_sign == self.__real_player_sign:
                 self.__instructions.config(text="Let's play !")
@@ -161,27 +121,19 @@ class FenPrincipale(Tk):
                         self.__buttons[i].config(state=NORMAL)
             else:
                 time.sleep(0.2)
-                for button in self.__buttons:
-                    button.config(state=DISABLED)
+                self.disable_buttons()
                 self.almost_IA_turn()
-                self.add_turn_to_record()
-                self.__sub_index += 1
 
 
     def almost_IA_turn(self):
         if len(self.__list_index_signs) < 9:
-            #get the critical squre to play
-            #j = self.look_around()
             j = self.look_depth(self.__depth)
-            #print("IA choose index : ", j)
-            #if no 2 square aligned for player or for IA, play randomly
             if j == -1:
                 i = np.random.randint(0, 9)
                 while i in self.__list_index_signs:
                     i = np.random.randint(0, 9)
             #else, stop the player or win the game
             else:
-                #print("Smart move")
                 i = j
             time.sleep(0.5)
             self.draw_sign(i)
@@ -225,7 +177,6 @@ class FenPrincipale(Tk):
                     IA_sign = 1
                 score = self.score_grid(grid_modif,IA_sign)
                 score_list[i] = score
-        print("List of score : ", score_list)
         return score_list
 
     def score_grid(self,grid,IA_sign):
@@ -243,10 +194,6 @@ class FenPrincipale(Tk):
                     score += next_victory
                 else: #possibility for player
                     score += urgent_save
-
-        #print("Grid : ",grid)
-        #print("List of IA possible moves : ", list_of_possibilites)
-
         return score
 
 
@@ -279,7 +226,6 @@ class FenPrincipale(Tk):
             sub_list_signs = [grid[i],grid[i+3],grid[i+6]]
             if self.unique_sign(sub_list_signs):
                 j = self.position_empty_square(sub_list_signs)
-                print("j = ",j)
                 if j == -2 :
                     list_sign_to_play.append(-1)
                     list_sign_to_play.append("immediate_finish")
@@ -339,114 +285,6 @@ class FenPrincipale(Tk):
 
 
 
-    def look_around(self):
-        """
-        The function is looking for 2 aligned signs that could let the player win during
-        the next game or 2 aligned signs that could be completed by a third one in order
-        to the IA to win the game.
-        The function create a list of all critical squares (that could be a threat or an opportunity)
-        and then choose the more critical square by giving priority to the defense better than to the attack.
-        The function returns then the index of the square that IA should play.
-        """
-        #defining the IA sign
-        if self.__real_player_sign == "circle":
-            IA_sign = -1 # "cross"
-        else:
-            IA_sign = 1 #"circle"
-        list_sign_to_play = []
-        #list of the sign convert to -1 0 and 1
-        list_signs = self.list_square_to_input()
-        # for the 3 lines
-        for i in range(0,len(self.__list_index_signs),3):
-            if self.unique_sign(list_signs[i:i+3]):#if the squares include similar signs or are empty
-                j = self.position_empty_square(list_signs[i:i+3])
-                if j != -1:
-                    list_sign_to_play.append(j+i)
-                    # check the sign of a non null square
-                    if j == 0:
-                        sign = list_signs[i+1]
-                    else:
-                        sign = list_signs[i]
-                    # add the kind of situation of the 3 aligned squares
-                    if sign == IA_sign :
-                        list_sign_to_play.append("Attacking")
-                    else:
-                        list_sign_to_play.append("Defending")
-                    print("Critical square : ")
-                    print(list_sign_to_play[-2:])
-        # for the 3 columns
-        for i in range(3):
-            sub_list_signs = [list_signs[i],list_signs[i+3],list_signs[i+6]]
-            if self.unique_sign(sub_list_signs):
-                j = self.position_empty_square(sub_list_signs)
-                if j != -1:
-                    list_sign_to_play.append(i+[0,3,6][j])
-                    #check the sign of a non null square
-                    if j == 0:
-                        sign = list_signs[i+3]
-                    else:
-                        sign = list_signs[i]
-                    # add the kind of situation of the 3 aligned squares
-                    if sign == IA_sign:
-                        list_sign_to_play.append("Attacking")
-                    else:
-                        list_sign_to_play.append("Defending")
-                    print("Critical square : ")
-                    print(list_sign_to_play[-2:])
-        #for diagonals
-        diag1 = [2,4,6]
-        signs_diag1 = [list_signs[k] for k in diag1]
-        if self.unique_sign(signs_diag1):
-            j = self.position_empty_square(signs_diag1)
-            if j != -1:
-                list_sign_to_play.append(diag1[j])
-                # check the sign of a non null square
-                if j == 0:
-                    sign = list_signs[diag1[1]]
-                else:
-                    sign = list_signs[diag1[0]]
-                # add the kind of situation of the 3 aligned squares
-                if sign == IA_sign:
-                    list_sign_to_play.append("Attacking")
-                else:
-                    list_sign_to_play.append("Defending")
-                print("Critical square : ")
-                print(list_sign_to_play[-2:])
-        diag2 = [0, 4, 8]
-        signs_diag2 = [list_signs[k] for k in diag2]
-        if self.unique_sign(signs_diag2):
-            j = self.position_empty_square(signs_diag2)
-            if j != -1:
-                list_sign_to_play.append(diag2[j])
-                # check the sign of a non null square
-                if j == 0:
-                    sign = list_signs[diag2[1]]
-                else:
-                    sign = list_signs[diag2[0]]
-                #add the kind of situation of the 3 aligned squares
-                if sign == IA_sign:
-                    list_sign_to_play.append("Attacking")
-                else:
-                    list_sign_to_play.append("Defending")
-                print("Critical square : ")
-                print(list_sign_to_play[-2:])
-        # we now have the list of critical squares and the information, filled in this square is
-        # a defense strategy or an attack strategy, we must choose the more critical one
-        if len(list_sign_to_play) == 0:
-            print("No free square")
-            return -1
-        elif len(list_sign_to_play) == 2:
-            print("one free square : ", list_sign_to_play)
-            return list_sign_to_play[0]
-        else:
-            if "Attacking" not in list_sign_to_play:
-                print("Square defended : ", list_sign_to_play[0:2])
-                return list_sign_to_play[0]
-            else:
-                print("Square attacked : ", list_sign_to_play[list_sign_to_play.index("Attacking")-1:list_sign_to_play.index("Attacking")+1])
-                return list_sign_to_play[list_sign_to_play.index("Attacking")-1]
-
-
     def unique_sign(self,list):
         #check if on the variable list there are only signs with the same symbol or empty square.
         sign = list[0]
@@ -460,9 +298,7 @@ class FenPrincipale(Tk):
         If there are more than one or no empty squares among the 3 squares defined by list
         the function returns -1, else it returns the index of the empty square.
         """
-        print(list)
         list_null = np.where(np.array(list) == 0)[0]
-        print(list_null)
         if len(list_null) == 0:  # si aucune case vide
             return -2
         elif len(list_null) == 1:  # si une case vide sur les trois
@@ -475,79 +311,13 @@ class FenPrincipale(Tk):
     def victory(self):
         if self.__last_sign == self.__real_player_sign:
             self.__instructions.config(text="You lose, try again")
-            self.record_data("IA_victory")
         else:
             self.__instructions.config(text="You won, congratulations !")
-            self.record_data("Player_victory")
-        for button in self.__buttons:
-            button.config(state=DISABLED)
+        self.disable_buttons()
 
     def board_full(self):
         self.__instructions.config(text="The board is full, please start a new game !")
-        self.record_data("null")
-
-    def is_won(self):
-        if len(self.__list_signs) <= 4:
-            return False
-        #if the first one was a cross
-        if type(self.__list_signs[0]) == list:
-            beg = 0
-        else :
-            beg = 1
-        #list of the index of al crosses and all circles.
-        list_cross = self.__list_index_signs[beg::2]
-        list_circle = self.__list_index_signs[1-beg::2]
-
-        #sorting of the list
-        list_cross = np.sort(list_cross)
-        list_circle = np.sort(list_circle)
-
-        #check if there are 3 aligned signs
-        if len(list_cross) >= 3:
-            for i in range(0,len(list_cross)-2):
-                #Check if 3 aligned cross on the lines
-                if (list_cross[i] == 0 or list_cross[i] == 3 or list_cross[i] == 6) and list_cross[i]==list_cross[i+1]-1==list_cross[i+2]-2:
-                    return True
-                # Check if 3 aligned cross on the columns
-                if (list_cross[i] == 0 or list_cross[i] == 1 or list_cross[i] == 2) and ((list_cross[i]+3) in list_cross) and ((list_cross[i]+6) in list_cross):
-                    return True
-                # Check if 3 aligned cross on the first diag
-                if list_cross[i] == 0 and (list_cross[i]+4) in list_cross and (list_cross[i]+8) in list_cross:
-                    return True
-                # Check if 3 aligned cross on the second diag
-                if list_cross[i] == 2 and (list_cross[i]+2) in list_cross and (list_cross[i]+4) in list_cross:
-                    return True
-        if len(list_circle) >= 3:
-            for i in range(0,len(list_circle)-2):
-                #Check if 3 aligned circle on the lines
-                if (list_circle[i] == 0 or list_circle[i] == 3 or list_circle[i] == 6) and list_circle[i]==list_circle[i+1]-1==list_circle[i+2]-2:
-                    return True
-                # Check if 3 aligned circle on the columns
-                if (list_circle[i] == 0 or list_circle[i] == 1 or list_circle[i] == 2) and ((list_circle[i]+3) in list_circle) and ((list_circle[i]+6) in list_circle):
-                    return True
-                # Check if 3 aligned circle on the first diag
-                if list_circle[i] == 0 and (list_circle[i]+4) in list_circle and (list_circle[i]+8) in list_circle:
-                    return True
-                # Check if 3 aligned circle on the second diag
-                if list_circle[i] == 2 and (list_circle[i]+2) in list_circle and (list_circle[i]+4) in list_circle:
-                    return True
-        return False
-
-    def add_turn_to_record(self):
-        data = {}
-        data["index"] = self.__index
-        data["sub_index"] = self.__sub_index
-        data["board_values"] = self.list_square_to_input()
-        if self.__last_sign == self.__real_player_sign:
-            data["player"] = "IA"
-        else:
-            data["player"] = "real_player"
-        self.__list_turn_record.append(data)
-
-    def record_data(self,result):
-        for data in self.__list_turn_record:
-            data["end_state"] = result
-            self.__game_recorder.add_game(data)
+        self.disable_buttons()
 
     def choose_sign(self):
         self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
@@ -566,6 +336,12 @@ class FenPrincipale(Tk):
                 input_layer[self.__list_index_signs[i]] = 1
         return input_layer
 
+    def disable_buttons(self):
+        for button in self.__buttons:
+            button.config(state=DISABLED)
+    def normal_buttons(self):
+        for button in self.__buttons:
+            button.config(state=NORMAL)
 
 
 

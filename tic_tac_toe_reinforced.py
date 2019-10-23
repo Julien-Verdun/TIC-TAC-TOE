@@ -4,33 +4,14 @@ Created on Sat Jul 27 18:14:23 2019
 @author: Julien Verdun
 """
 
-
-"""
-TO-DO LIST
-
-Tout changer pour fixer les ronds au joueur et les croix à l'IA, et ensuite 1 au joueur et -1 
-à l'IA ou l'inverse, pour que l'IA apprenne toujours avec les mêmes données
-
-Regarder comment donner plus de poids aux bons jeux et pénaliser les mauvais, comme quand deux fois la même touche est activé. 
-Comment prendre en compte le score dans l'apprentissage des données ?
-
-
-
-Reinforcement learning
-- on fait jouer aléatoirement une partie
-- chaque fois qu'on gagne une partie on récompense ?
-
-"""
-
-
 from tkinter import *
 from tkinter.messagebox import *
 import random
 import numpy as np
 from time import sleep
 import time
-import neural_network as neural_network_class
-import game_recorder
+from constantes import *
+import qlearning as ql
 from utils import functions as fct
 
 global t0,t1
@@ -72,7 +53,6 @@ class FenPrincipale(Tk):
 
         self.__boutonPlay = Button(self, text='Play', command=self.play).pack(side=LEFT, padx=5, pady=5)
         self.__boutonNewGame = Button(self, text='New game', command=self.new_game).pack(side=LEFT, padx=5, pady=5)
-        self.__boutonTrainNN = Button(self, text='Train NN', command=self.trainNN).pack(side=LEFT, padx=5, pady=5)
         self.__boutonExit = Button(self, text='Exit', command=self.exit).pack(side=LEFT, padx=5, pady=5)
 
         self.__buttons = []
@@ -88,17 +68,13 @@ class FenPrincipale(Tk):
         self.__last_sign = "circle"
 
         self.__real_player_sign = self.__last_sign
-
-        self.__list_turn_record = []
-
-        self.__nn = neural_network_class.NeuralNetwork()
-
-        self.__game_recorder = game_recorder.Game_recorder("record_games.JSON")
-
-        self.__index = self.__game_recorder.get_index()
-
-        self.__sub_index = 0
-
+        #initialization of the qlearning class
+        self.__qlearning = ql.qlearning("R.txt", "Q.txt", "all_possible_grid.txt", 0.8, 1, 100, 9)
+        #loading the needy lists
+        self.__qlearning.load_list_grid()
+        self.__qlearning.load_R()
+        self.__qlearning.load_Q()
+        #self.__qlearning.comput_Q()
         t1 = time.time()
         print("Time to run the game : ",t1-t0)
 
@@ -107,18 +83,12 @@ class FenPrincipale(Tk):
         self.destroy()
 
     def play(self):
-        #self.choose_sign()
         self.__last_sign = "circle"
         self.__real_player_sign = self.__last_sign
-        for button in self.__buttons:
-            button.config(state=NORMAL)
+        self.normal_buttons()
 
     def new_game(self):
-        #self.choose_sign()
-        self.__last_sign = "circle"
-        self.__real_player_sign = self.__last_sign
-        for button in self.__buttons:
-            button.config(state=NORMAL)
+        self.play()
         for elt in self.__list_signs:
             if type(elt) == list:
                 for line in elt:
@@ -143,14 +113,10 @@ class FenPrincipale(Tk):
             self.__last_sign = "cross"
 
     def next_turn(self):
-        self.add_turn_to_record("player",self.__list_index_signs[-1])
-        self.__sub_index += 1
-        if self.is_won():
+        if fct.is_won(self.__list_signs,self.__list_index_signs):
             self.victory()
-
         elif len(self.__list_signs) == 9:
             self.board_full()
-
         else:
             if self.__last_sign == self.__real_player_sign:
                 self.__instructions.config(text="Your turn to play")
@@ -161,141 +127,53 @@ class FenPrincipale(Tk):
                         self.__buttons[i].config(state=NORMAL)
             else:
                 self.__instructions.config(text="Please wait for the IA to play")
-                for button in self.__buttons:
-                    button.config(state=DISABLED)
+                self.disable_buttons()
                 self.IA_turn()
-        self.add_turn_to_record("IA",self.__list_index_signs[-1])
-        self.__sub_index += 1
+
+    def list_index_to_grid(self):
+        # if the first one was a cross
+        if type(self.__list_signs[0]) == list:
+            beg = 0
+        else:
+            beg = 1
+        # list of the index of al crosses and all circles.
+        list_cross = self.__list_index_signs[beg::2]
+        list_circle = self.__list_index_signs[1 - beg::2]
+        grid = [0 for k in range(9)]
+        for elt in list_cross:
+            grid[elt] = -1
+        for elt in list_circle:
+            grid[elt] = 1
+        return grid
+
 
     def IA_turn(self):
         if len(self.__list_index_signs) < 9:
-            list_index = self.__nn.predict_square(np.array(self.list_square_to_input()))
-            #list_index = self.__nn.predict_output(np.array(self.list_square_to_input()))
-            print("Output : ",list_index)
-            i = np.argmax(list_index)
-            print("IA predict : ", i)
+            square_to_play = self.__qlearning.predict_move(self.list_index_to_grid())
+            print("IA plays : ",square_to_play)
             time.sleep(0.5)
-            self.draw_sign(i)
+            self.draw_sign(square_to_play)
             self.next_turn()
         else:
             print("error,board full")
 
-    def trainNN(self):
-        self.__nn.train_neural_network()
-
     def victory(self):
         if self.__last_sign == self.__real_player_sign:
             self.__instructions.config(text="You lose, try again")
-            self.record_data("IA_victory")
         else:
             self.__instructions.config(text="You won, congratulations !")
-            self.record_data("Player_victory")
-        for button in self.__buttons:
-            button.config(state=DISABLED)
+        self.disable_buttons()
 
     def board_full(self):
         self.__instructions.config(text="The board is full, please start a new game !")
-        self.record_data("null")
+        self.disable_buttons()
 
-    def is_won(self):
-        if len(self.__list_signs) <= 4:
-            return False
-        #if the first one was a cross
-        if type(self.__list_signs[0]) == list:
-            beg = 0
-        else :
-            beg = 1
-        #list of the index of al crosses and all circles.
-        list_cross = self.__list_index_signs[beg::2]
-        list_circle = self.__list_index_signs[1-beg::2]
-
-        #sorting of the list
-        list_cross = np.sort(list_cross)
-        list_circle = np.sort(list_circle)
-
-        #check if there are 3 aligned signs
-        if len(list_cross) >= 3:
-            for i in range(0,len(list_cross)-2):
-                #Check if 3 aligned cross on the lines
-                if (list_cross[i] == 0 or list_cross[i] == 3 or list_cross[i] == 6) and list_cross[i]==list_cross[i+1]-1==list_cross[i+2]-2:
-                    return True
-                # Check if 3 aligned cross on the columns
-                if (list_cross[i] == 0 or list_cross[i] == 1 or list_cross[i] == 2) and ((list_cross[i]+3) in list_cross) and ((list_cross[i]+6) in list_cross):
-                    return True
-                # Check if 3 aligned cross on the first diag
-                if list_cross[i] == 0 and (list_cross[i]+4) in list_cross and (list_cross[i]+8) in list_cross:
-                    return True
-                # Check if 3 aligned cross on the second diag
-                if list_cross[i] == 2 and (list_cross[i]+2) in list_cross and (list_cross[i]+4) in list_cross:
-                    return True
-        if len(list_circle) >= 3:
-            for i in range(0,len(list_circle)-2):
-                #Check if 3 aligned circle on the lines
-                if (list_circle[i] == 0 or list_circle[i] == 3 or list_circle[i] == 6) and list_circle[i]==list_circle[i+1]-1==list_circle[i+2]-2:
-                    return True
-                # Check if 3 aligned circle on the columns
-                if (list_circle[i] == 0 or list_circle[i] == 1 or list_circle[i] == 2) and ((list_circle[i]+3) in list_circle) and ((list_circle[i]+6) in list_circle):
-                    return True
-                # Check if 3 aligned circle on the first diag
-                if list_circle[i] == 0 and (list_circle[i]+4) in list_circle and (list_circle[i]+8) in list_circle:
-                    return True
-                # Check if 3 aligned circle on the second diag
-                if list_circle[i] == 2 and (list_circle[i]+2) in list_circle and (list_circle[i]+4) in list_circle:
-                    return True
-        return False
-
-    def add_turn_to_record(self,camp,index_played):
-        data = {}
-        data["index"] = self.__index
-        data["sub_index"] = self.__sub_index
-        data["board_values"] = self.list_square_to_input()
-        data["board_values"] = self.list_square_to_input()
-        data["player"] = camp
-        data["score"] = 0
-        data["index_played"] = int(index_played)
-        self.__list_turn_record.append(data)
-
-    def record_data(self,result):
-        self.__index = self.__game_recorder.get_index() + 1
-        i = 1
-        for data in self.__list_turn_record:
-            data["index"] = self.__index
-            data["sub_index"] = i
-            if data["player"] == "IA" and result == "IA_victory":
-                data["score"] = 10
-            elif data["player"] == "IA" and result == "Player_victory":
-                data["score"] = -10
-            elif data["player"] == "player" and result == "IA_victory":
-                data["score"] = -10
-            elif data["player"] == "player" and result == "Player_victory":
-                data["score"] = 10
-            else :
-                data["score"] = 0
-            data["end_state"] = result
-            self.__game_recorder.add_game(data)
-            i += 1
-    """
-    def choose_sign(self):
-        self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
-    """
-    def list_square_to_input(self,input=[]):
-        """
-        Take the list of squares fill in by a sign and create a 9x1
-        array (input_layer for neural network) with values -1 for a cross,
-        0 if empty square and 1 for a circle.
-        """
-        input_layer = [0 for k in range(9)]
-        for i in range(len(self.__list_signs)):
-            if type(self.__list_signs[i]) == list:
-                input_layer[self.__list_index_signs[i]] = -1
-            else:
-                input_layer[self.__list_index_signs[i]] = 1
-        return input_layer
-
-
-
-
-
+    def disable_buttons(self):
+        for button in self.__buttons:
+            button.config(state=DISABLED)
+    def normal_buttons(self):
+        for button in self.__buttons:
+            button.config(state=NORMAL)
 
 class MonBoutton(Button):
     def __init__(self,fen,f,tex,i):

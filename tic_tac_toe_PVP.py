@@ -5,22 +5,12 @@ Created on Sat Jul 27 18:14:23 2019
 """
 
 
-"""
-TO-DO LIST
-
-Choix aleatoire du joueur qui commence
-
-Possibilité de réinitialiser le plateau
-
-Menu joueur contre joueur et joueur contre IA
-"""
-
-
 from tkinter import *
 from tkinter.messagebox import *
 import random
 import numpy as np
 import time
+from utils import functions as fct
 
 
 global t0,t1
@@ -80,17 +70,12 @@ class FenPrincipale(Tk):
 
     def play(self):
         self.choose_sign()
-        for button in self.__buttons:
-            button.config(state=NORMAL)
+        self.normal_buttons()
         instruction_text = "Let's play the game ! Player " + self.__last_sign + " you start !"
         self.__instructions.config(text=instruction_text)
 
     def new_game(self):
-        self.choose_sign()
-        instruction_text = "Let's play a new game ! Player " + self.__last_sign + " you start !"
-        self.__instructions.config(text = instruction_text)
-        for button in self.__buttons:
-            button.config(state=NORMAL)
+        self.play()
         for elt in self.__list_signs:
             if type(elt) == list:
                 for line in elt :
@@ -118,7 +103,7 @@ class FenPrincipale(Tk):
             self.__last_sign = "cross"
 
     def next_turn(self):
-        if self.is_won():
+        if fct.is_won(self.__list_signs,self.__list_index_signs):
             self.victory()
 
         elif len(self.__list_signs) == 9:
@@ -131,58 +116,16 @@ class FenPrincipale(Tk):
             self.__instructions.config(text="Player CROSS, congratulations !! You won")
         else:
             self.__instructions.config(text="Player CIRCLE, congratulations !! You won")
-        for button in self.__buttons:
-            button.config(state=DISABLED)
-
-    def is_won(self):
-        if len(self.__list_signs) <= 4:
-            return False
-        #if the first one was a cross
-        if type(self.__list_signs[0]) == list:
-            beg = 0
-        else :
-            beg = 1
-        #list of the index of al crosses and all circles.
-        list_cross = self.__list_index_signs[beg::2]
-        list_circle = self.__list_index_signs[1-beg::2]
-
-        #sorting of the list
-        list_cross = np.sort(list_cross)
-        list_circle = np.sort(list_circle)
-
-        #check if there are 3 aligned signs
-        if len(list_cross) >= 3:
-            for i in range(0,len(list_cross)-2):
-                #Check if 3 aligned cross on the lines
-                if (list_cross[i] == 0 or list_cross[i] == 3 or list_cross[i] == 6) and list_cross[i]==list_cross[i+1]-1==list_cross[i+2]-2:
-                    return True
-                # Check if 3 aligned cross on the columns
-                if (list_cross[i] == 0 or list_cross[i] == 1 or list_cross[i] == 2) and ((list_cross[i]+3) in list_cross) and ((list_cross[i]+6) in list_cross):
-                    return True
-                # Check if 3 aligned cross on the first diag
-                if list_cross[i] == 0 and (list_cross[i]+4) in list_cross and (list_cross[i]+8) in list_cross:
-                    return True
-                # Check if 3 aligned cross on the second diag
-                if list_cross[i] == 2 and (list_cross[i]+2) in list_cross and (list_cross[i]+4) in list_cross:
-                    return True
-        if len(list_circle) >= 3:
-            for i in range(0,len(list_circle)-2):
-                #Check if 3 aligned circle on the lines
-                if (list_circle[i] == 0 or list_circle[i] == 3 or list_circle[i] == 6) and list_circle[i]==list_circle[i+1]-1==list_circle[i+2]-2:
-                    return True
-                # Check if 3 aligned circle on the columns
-                if (list_circle[i] == 0 or list_circle[i] == 1 or list_circle[i] == 2) and ((list_circle[i]+3) in list_circle) and ((list_circle[i]+6) in list_circle):
-                    return True
-                # Check if 3 aligned circle on the first diag
-                if list_circle[i] == 0 and (list_circle[i]+4) in list_circle and (list_circle[i]+8) in list_circle:
-                    return True
-                # Check if 3 aligned circle on the second diag
-                if list_circle[i] == 2 and (list_circle[i]+2) in list_circle and (list_circle[i]+4) in list_circle:
-                    return True
-        return False
+        self.disable_buttons()
 
     def choose_sign(self):
         self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
+    def disable_buttons(self):
+        for button in self.__buttons:
+            button.config(state=DISABLED)
+    def normal_buttons(self):
+        for button in self.__buttons:
+            button.config(state=NORMAL)
 
 
 

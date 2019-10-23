@@ -64,3 +64,55 @@ def list_of_0(liste):
         if liste[i] == 0:
             liste_z.append(i)
     return liste_z
+
+
+
+
+
+   def is_won(list_signs,list_index_signs):
+        if len(list_signs) <= 4:
+            return False
+        #if the first one was a cross
+        if type(list_signs[0]) == list:
+            beg = 0
+        else :
+            beg = 1
+        #list of the index of al crosses and all circles.
+        list_cross = list_index_signs[beg::2]
+        list_circle = list_index_signs[1-beg::2]
+
+        #sorting of the list
+        list_cross = np.sort(list_cross)
+        list_circle = np.sort(list_circle)
+
+        #check if there are 3 aligned signs
+        if len(list_cross) >= 3:
+            for i in range(0,len(list_cross)-2):
+                #Check if 3 aligned cross on the lines
+                if (list_cross[i] == 0 or list_cross[i] == 3 or list_cross[i] == 6) and list_cross[i]==list_cross[i+1]-1==list_cross[i+2]-2:
+                    return True
+                # Check if 3 aligned cross on the columns
+                if (list_cross[i] == 0 or list_cross[i] == 1 or list_cross[i] == 2) and ((list_cross[i]+3) in list_cross) and ((list_cross[i]+6) in list_cross):
+                    return True
+                # Check if 3 aligned cross on the first diag
+                if list_cross[i] == 0 and (list_cross[i]+4) in list_cross and (list_cross[i]+8) in list_cross:
+                    return True
+                # Check if 3 aligned cross on the second diag
+                if list_cross[i] == 2 and (list_cross[i]+2) in list_cross and (list_cross[i]+4) in list_cross:
+                    return True
+        if len(list_circle) >= 3:
+            for i in range(0,len(list_circle)-2):
+                #Check if 3 aligned circle on the lines
+                if (list_circle[i] == 0 or list_circle[i] == 3 or list_circle[i] == 6) and list_circle[i]==list_circle[i+1]-1==list_circle[i+2]-2:
+                    return True
+                # Check if 3 aligned circle on the columns
+                if (list_circle[i] == 0 or list_circle[i] == 1 or list_circle[i] == 2) and ((list_circle[i]+3) in list_circle) and ((list_circle[i]+6) in list_circle):
+                    return True
+                # Check if 3 aligned circle on the first diag
+                if list_circle[i] == 0 and (list_circle[i]+4) in list_circle and (list_circle[i]+8) in list_circle:
+                    return True
+                # Check if 3 aligned circle on the second diag
+                if list_circle[i] == 2 and (list_circle[i]+2) in list_circle and (list_circle[i]+4) in list_circle:
+                    return True
+        return False
+

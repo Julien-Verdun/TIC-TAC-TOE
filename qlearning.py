@@ -9,18 +9,9 @@ import numpy as np
 import random
 from utils import functions as fct
 
-"""
-TO-DO LIST
-
-Verifier le systeme d'attribution des rewards: comment juger d'une défense,
-comment juger d'une defaite etc
-
-Quand qlearning fonctionnel, le connecter au jeu 
-
-"""
 
 global m
-m = 10000
+m = 1000000
 
 class qlearning:
     """
@@ -128,6 +119,7 @@ class qlearning:
             self.__list_grid.append(sublist)
         self.__nb_states = len(self.__list_grid)
         print("List of all grid loaded !")
+        print(len(self.__list_grid))
         return self.__list_grid
 
 
@@ -142,57 +134,44 @@ class qlearning:
 
         #Initialization of the Q matrix
         self.__Q = np.zeros((self.__nb_states, self.__nb_actions))
-        #For each episode
+
         for k in range(m):
             print("Avancement : {}%".format(100*k/m))
-            # random selection of an initial state (an empty grid with only one circle
-            action = np.random.randint(0,9)
-            state = [0 for l in range(9)]
-            state[action] = 1
-            #print("{} - State : {}".format(k,state))
-            #Index of the state in the list of possible state
-            index_state = self.__list_grid.index(state)
-
+            # random selection of an initial state (a grid with one more circle than cross)
+            index_state = np.random.randint(0,self.__nb_states)
+            state = self.__list_grid[index_state]
             #while final state isn't reached (end of the game)
-            while True :
-                #print("Current state : ",state)
+            continuer = True
+            while continuer :
                 #if end state is reached (someone already win the game or the grid is full)
                 if self.is_end_state_grid(state):
-                    #print("end_state 1: ", new_state)
-                    break
+                    continuer = False
                 else :
                     # selection of a new state among possible state
 
                     # definition of possible actions
                     action_dispo = []
-                    # we sort the current state rewards list
-                    list_sorted = np.sort(self.__R[index_state])
-                    index_sorted = np.argsort(self.__R[index_state])
                     # we select the actions that lead to a reward better or equal to -1
                     for i in range(self.__nb_actions):
-                        if list_sorted[i] <= -1:
-                            break
-                        else:
-                            action_dispo.append(index_sorted[i])
+                        if self.__R[index_state][i] >= -10:
+                            action_dispo.append(i)
                     # if their are no possible actions, we take the better option
                     if len(action_dispo) == 0:
-                        #print("Pas d'action possible alors que partie pas finit")
-                        action = np.argmax(self.__R[index_state])
-                    # otherwise,
+                        break
                     else:
                         #choix du max dans 80% des cas et dans 20% on choisit aléatoirement pour
                         #ajouter une part d'exploration
-                        if np.random.randint(0,101) >= 80:
+                        if np.random.randint(0,101) >= 70:
                             action = action_dispo[np.random.randint(0, len(action_dispo))]
                         else:
-                            action = np.argmax(action_dispo)
+                            action = np.argmax(self.__R[index_state])
                     # definition of the new state with the choosen action
                     new_state = state.copy()
+                    #print("Action placement -1: ",action)
                     new_state[action] = -1
-
+                    #print("New state : ", new_state)
                     # if the action end the game, we stop this episode
                     if self.is_end_state_grid(new_state):
-                        #print("end_state 2 : ", new_state)
                         break
                     # otherwise we continue to play (player turn)
                     else :
@@ -200,32 +179,19 @@ class qlearning:
                         #list of available square in the grid
                         liste_z = fct.list_of_0(new_state)
                         # if several square are available, we choose on of those
-                        if liste_z != [] :
-                            action = liste_z[np.random.randint(0,len(liste_z))]
-                        # otherwise, we choose on randomly
-                        else:
-                            ######## ne devrait pas arriver
-                            #print("Pas d'action possible alors que le jeu n'est pas fini")
-                            action = np.random.randint(0, self.__nb_actions)
+                        action = liste_z[np.random.randint(0,len(liste_z))]
                         # we place a circle on the selected action
+                        #print("Action placement 1: ", action)
                         new_state[action] = 1
-                        #print("{} - New state : {}".format(k,new_state))
+
                         # we search the index of the new state in the list of posssible grid
                         index_new_state = self.__list_grid.index(new_state)
 
                         # We look for the maximal value of Q for the choosen state by considering all available actions
-                        liste_maxQ = [self.__Q[index_new_state][ind] for ind in fct.list_of_0(new_state)]
-
-                        # if there are no available actions
-                        if len(liste_maxQ) == 0:
-                            #print("No available action")
-                            maxQ = 0
-                        # otherwise we take the action that gives the higher Q value
-                        else :
-                            maxQ = np.max(liste_maxQ)
+                        maxQ = np.max([self.__Q[index_new_state]])
 
                         # updating of Q
-                        self.__Q = self.newQ(self.__Q, maxQ, index_state, action)
+                        self.__Q = self.newQ(self.__Q, maxQ, index_state, action)# ou alors index_new_state et action ?
                         # mise à jour de l'état courant
                         state = new_state.copy()
                         index_state = index_new_state
@@ -238,12 +204,6 @@ class qlearning:
 
     def newQ(self,lastQ, maxQ, i, j):
         """
-
-        :param lastQ:
-        :param maxQ:
-        :param i:
-        :param j:
-        :return:
         """
         newQ = lastQ.copy()
         newQ[i][j] = lastQ[i][j] * (1 - self.__alpha) + self.__alpha * (self.__R[i][j] + self.__gamma * maxQ)
@@ -259,10 +219,10 @@ class qlearning:
         order to maximize its chances to win. The square is known with
         the Q-matrix computed before.
         """
-        print("PREDICTION : ")
-        print(str(self.__Q[np.where(self.__Q==grid)]))
-        print(grid)
-        return np.argmax(self.__Q[np.where(self.__Q==grid)])
+        for i in range(len(self.__list_grid)):
+            if self.__list_grid[i] == grid :
+                return np.argmax(self.__Q[i])
+
 
 
 
@@ -412,24 +372,16 @@ class qlearning:
             return True
         return False
 
-# Building the matrix R
-
-#ql = qlearning("R.txt","Q.txt","all_possible_grid.txt", 0.8, 1, 100, 9)
-#ql.comput_R()
-
-# training the IA by computing the optimal Q matrix
-
+"""
 ql = qlearning("R.txt","Q.txt","all_possible_grid.txt", 0.8, 1, 100, 9)
-
-
-
 ql.load_list_grid()
 ql.load_R()
 
-#ql.load_Q()
-ql.comput_Q()
+ql.load_Q()
+#ql.comput_Q()
 
 # Testing some grid
 print("Trying some prediction :")
-print("Expected result : 2, got : ",ql.predict_move(np.array([1,1,0,0,-1,1,0,-1,0])))
-print("Expected result : 6, got : ",ql.predict_move(np.array([1,0,-1,0,-1,1,0,0,1])))
+print("Expected result : 2, got : ",ql.predict_move([1,1,0,0,-1,1,0,-1,0]))
+print("Expected result : 6, got : ",ql.predict_move([1,0,-1,0,-1,1,0,0,1]))
+"""
