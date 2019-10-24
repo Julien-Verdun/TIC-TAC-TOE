@@ -2,7 +2,10 @@
 
 ## Description of the project
 
-The project aims at programming the game "Tic Tac Toe" with Python.
+The project aims at programming the game "Tic Tac Toe" with Python. I decided to work on that project after I heard about AI on game. Especially, I read few articles about the famous Game of Go and the AlphaGo the awesome AI trained by DeepMind. This is what inspired me, I wanted to work on something similar, with my knowledge on python and reinforcment learning.
+
+
+## The game 
 
 This game is a two-player game. It consists in filling in a board, composed of 9 squares, with cross and circles depending on the camp, in order to aligned 3 identical signs.
 
@@ -14,8 +17,6 @@ Three versions of the game have been implemented and are explained below.
 #### Python packages required
 
 In order to play the game you will need the following python packages installed on you python :
-- tensorflow
-- keras
 - tkinter
 - numpy
 - time
@@ -60,9 +61,25 @@ The intelligence of the IA is based on the **Q-learning method**.
         * otherwise the reward is : -1
     
 
-Then, we compute the optimal Q matrix this way.
+- Then, we compute the optimal Q matrix this way (first initialise to 0 matrix), for a given number of episode (the bigger the better) : 
+    - a possible state is randomly choosen
+    - while the game is not ended one way or another :
+        - regarding the rewards that could be got, the next action is choosen
+        - for the corresponding state, we compute the maximal value of Q and update the Q matrix
+
+
+With the trained Q matrix, we can predict the next move AI should do to maximise its chances to win the game. 
+
+
+![demo_reinforced_version](image/tic_tac_toe_reinforced.PNG)
 
 
 
 
-##### Enjoy the game
+
+
+
+
+
+
+# Enjoy the game 

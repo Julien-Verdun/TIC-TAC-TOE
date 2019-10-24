@@ -119,7 +119,6 @@ class qlearning:
             self.__list_grid.append(sublist)
         self.__nb_states = len(self.__list_grid)
         print("List of all grid loaded !")
-        print(len(self.__list_grid))
         return self.__list_grid
 
 

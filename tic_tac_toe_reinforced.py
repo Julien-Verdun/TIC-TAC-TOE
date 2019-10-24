@@ -10,8 +10,8 @@ import random
 import numpy as np
 import time
 from utils.constantes import *
-from utils.Qlearning import qlearning as ql
-from utils import functions as fct, import classFile as cls
+from utils.qlearning import qlearning as ql
+from utils import functions as fct, classFile as cls
 from tkinter import *
 from tkinter.messagebox import *
 
@@ -56,7 +56,8 @@ class FenPrincipale(Tk):
 
         self.__real_player_sign = self.__last_sign
         #initialization of the qlearning class
-        self.__qlearning = ql.qlearning("R.txt", "Q.txt", "all_possible_grid.txt", 0.8, 1, 100, 9)
+        path = "utils/qlearning/"
+        self.__qlearning = ql.qlearning(path + "R.txt", path + "Q.txt", path + "all_possible_grid.txt", 0.8, 1, 100, 9)
         #loading the needy lists
         self.__qlearning.load_list_grid()
         self.__qlearning.load_R()
@@ -137,7 +138,6 @@ class FenPrincipale(Tk):
     def IA_turn(self):
         if len(self.__list_index_signs) < 9:
             square_to_play = self.__qlearning.predict_move(self.list_index_to_grid())
-            print("IA plays : ",square_to_play)
             time.sleep(0.5)
             self.draw_sign(square_to_play)
             self.next_turn()
