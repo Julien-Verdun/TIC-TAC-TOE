@@ -4,35 +4,22 @@ Created on Sat Jul 27 18:14:23 2019
 @author: Julien Verdun
 """
 
-from tkinter import *
-from tkinter.messagebox import *
 import random
 import numpy as np
-from time import sleep
 import time
-from constantes import *
-from utils import functions as fct
+from utils.constantes import *
+from utils import functions as fct, classFile as cls
+from tkinter import *
+from tkinter.messagebox import *
 
 
 
 global t0,t1
 t0 = time.time()
 t1 = time.time()
-# --------------------------------------------------------
 
 
 
-class ZoneAffichage(Canvas):
-    def __init__(self, parent, w=width, h=height, _bg='white'):
-        self.__w = w
-        self.__h = h
-        self.__fen_parent=parent
-        Canvas.__init__(self, parent, width=w, height=h, bg=_bg, relief=RAISED, bd=5)
-        self.create_rectangle(10,10,w,h,outline="black",width=2)
-        self.create_line(10, h // 3, w, h // 3, fill="black", width=2)
-        self.create_line(w//3, 10, w//3, h, fill="black", width=2)
-        self.create_line(10, 2* h // 3, w, 2* h // 3, fill="black", width=2)
-        self.create_line(2* w//3, 10, 2* w//3, h, fill="black", width=2)
 
 class FenPrincipale(Tk):
     def __init__(self):
@@ -43,7 +30,7 @@ class FenPrincipale(Tk):
         self.__instructions.config(text="Welcome on board, please start the game !")
 
         self.title('TIC TAC TOE PVM')
-        self.__zoneAffichage = ZoneAffichage(self)
+        self.__zoneAffichage = cls.ZoneAffichage(self)
         self.__zoneAffichage.pack(padx=5, pady=5)
 
         f1 = Frame(self)
@@ -55,7 +42,7 @@ class FenPrincipale(Tk):
 
         self.__buttons = []
         for i in range(9):
-            button = MonBoutton(self, f1, '*',i)
+            button = cls.MonBoutton(self, f1, '*',i)
             button.grid(row=(i // 3) + 2, column=i - 3 * (i // 3) + 2)
             self.__buttons.append(button)
             self.__buttons[i].config(command=self.__buttons[i].cliquer, state = DISABLED)
@@ -125,13 +112,13 @@ class FenPrincipale(Tk):
                 self.almost_IA_turn()
 
 
+
     def almost_IA_turn(self):
         if len(self.__list_index_signs) < 9:
             j = self.look_depth(self.__depth)
             if j == -1:
-                i = np.random.randint(0, 9)
-                while i in self.__list_index_signs:
-                    i = np.random.randint(0, 9)
+                free_squares = fct.freeSquares(self.__list_index_signs)
+                i = free_squares[np.random.randint(0,len(free_squares))]
             #else, stop the player or win the game
             else:
                 i = j
@@ -149,9 +136,10 @@ class FenPrincipale(Tk):
         randomly returned, computed with the available next IA moves, or even with the IA and player moves.
         """
         if depth == 0:
+            #AI choose randomly
             return -1
         elif depth == 1:
-            grid = self.list_square_to_input() # grid translated by a 9 length vector with -1 for x 1 for o and 0 for empty squares
+            grid = fct.list_square_to_input(self.__list_signs,self.__list_index_signs) # grid translated by a 9 length vector with -1 for x 1 for o and 0 for empty squares
             score_list = self.min_max(grid)
             if np.max(score_list) == 0 and len(np.where(np.array(score_list) == 0)[0]) > 6:
                 return -1
@@ -204,8 +192,8 @@ class FenPrincipale(Tk):
         """
         list_sign_to_play = []
         for i in range(0,len(grid),3):
-            if self.unique_sign(grid[i:i+3]):#if the squares include similar signs or are empty
-                j = self.position_empty_square(grid[i:i+3])
+            if fct.unique_sign(grid[i:i+3]):#if the squares include similar signs or are empty
+                j = fct.position_empty_square(grid[i:i+3])
                 if j == -2 : #if 3 same squared aligned
                     list_sign_to_play.append(-1)
                     list_sign_to_play.append("immediate_finish")
@@ -224,8 +212,8 @@ class FenPrincipale(Tk):
         # for the 3 columns
         for i in range(3):
             sub_list_signs = [grid[i],grid[i+3],grid[i+6]]
-            if self.unique_sign(sub_list_signs):
-                j = self.position_empty_square(sub_list_signs)
+            if fct.unique_sign(sub_list_signs):
+                j = fct.position_empty_square(sub_list_signs)
                 if j == -2 :
                     list_sign_to_play.append(-1)
                     list_sign_to_play.append("immediate_finish")
@@ -244,8 +232,8 @@ class FenPrincipale(Tk):
         #for diagonals
         diag1 = [2,4,6]
         signs_diag1 = [grid[k] for k in diag1]
-        if self.unique_sign(signs_diag1):
-            j = self.position_empty_square(signs_diag1)
+        if fct.unique_sign(signs_diag1):
+            j = fct.position_empty_square(signs_diag1)
             if j == -2:
                 list_sign_to_play.append(-1)
                 list_sign_to_play.append("immediate_finish")
@@ -264,8 +252,8 @@ class FenPrincipale(Tk):
 
         diag2 = [0, 4, 8]
         signs_diag2 = [grid[k] for k in diag2]
-        if self.unique_sign(signs_diag2):
-            j = self.position_empty_square(signs_diag2)
+        if fct.unique_sign(signs_diag2):
+            j = fct.position_empty_square(signs_diag2)
             if j == -2:
                 list_sign_to_play.append(-1)
                 list_sign_to_play.append("immediate_finish")
@@ -285,27 +273,9 @@ class FenPrincipale(Tk):
 
 
 
-    def unique_sign(self,list):
-        #check if on the variable list there are only signs with the same symbol or empty square.
-        sign = list[0]
-        for i in range(1,len(list)):
-            if list[i] != 0 and list[i] != sign :
-                return False
-        return True
 
-    def position_empty_square(self,list):
-        """
-        If there are more than one or no empty squares among the 3 squares defined by list
-        the function returns -1, else it returns the index of the empty square.
-        """
-        list_null = np.where(np.array(list) == 0)[0]
-        if len(list_null) == 0:  # si aucune case vide
-            return -2
-        elif len(list_null) == 1:  # si une case vide sur les trois
-            return list_null[0]
-            # return list.index(0)
-        else:  # plus d'une case vide (2 ou 3)
-            return -1
+
+
 
 
     def victory(self):
@@ -322,19 +292,7 @@ class FenPrincipale(Tk):
     def choose_sign(self):
         self.__last_sign = ["circle","cross"][np.random.randint(0,2)]
 
-    def list_square_to_input(self):
-        """
-        Take the list of squares fill in by a sign and create a 9x1
-        array (input_layer for neural network) with values -1 for a cross,
-        0 if empty square and 1 for a circle.
-        """
-        input_layer = [0 for k in range(9)]
-        for i in range(len(self.__list_signs)):
-            if type(self.__list_signs[i]) == list:
-                input_layer[self.__list_index_signs[i]] = -1
-            else:
-                input_layer[self.__list_index_signs[i]] = 1
-        return input_layer
+
 
     def disable_buttons(self):
         for button in self.__buttons:
@@ -347,19 +305,7 @@ class FenPrincipale(Tk):
 
 
 
-class MonBoutton(Button):
-    def __init__(self,fen,f,tex,i):
-        Button.__init__(self,master=f,text=tex)
-        self.__pos = i
-        self.__t = tex
-        self.fen = fen
-        self.config(command = self.cliquer)
-    def cliquer(self):
-        """Lance la procedure de traitement a chaque clique sur une lettre """
-        self.config(state = DISABLED)
-        i = self.__pos
-        self.fen.draw_sign(i)
-        self.fen.next_turn()
+
 
 
 

@@ -4,36 +4,23 @@ Created on Sat Jul 27 18:14:23 2019
 @author: Julien Verdun
 """
 
-from tkinter import *
-from tkinter.messagebox import *
+
+
 import random
 import numpy as np
-from time import sleep
 import time
-from constantes import *
-import qlearning as ql
-from utils import functions as fct
+from utils.constantes import *
+from utils.Qlearning import qlearning as ql
+from utils import functions as fct, import classFile as cls
+from tkinter import *
+from tkinter.messagebox import *
+
 
 global t0,t1
 t0 = time.time()
 t1 = time.time()
-# --------------------------------------------------------
 
-global width, height
-width = 400
-height = 400
 
-class ZoneAffichage(Canvas):
-    def __init__(self, parent, w=width, h=height, _bg='white'):
-        self.__w = w
-        self.__h = h
-        self.__fen_parent=parent
-        Canvas.__init__(self, parent, width=w, height=h, bg=_bg, relief=RAISED, bd=5)
-        self.create_rectangle(10,10,w,h,outline="black",width=2)
-        self.create_line(10, h // 3, w, h // 3, fill="black", width=2)
-        self.create_line(w//3, 10, w//3, h, fill="black", width=2)
-        self.create_line(10, 2* h // 3, w, 2* h // 3, fill="black", width=2)
-        self.create_line(2* w//3, 10, 2* w//3, h, fill="black", width=2)
 
 class FenPrincipale(Tk):
     def __init__(self):
@@ -45,7 +32,7 @@ class FenPrincipale(Tk):
 
 
         self.title('TIC TAC TOE REINFORCED')
-        self.__zoneAffichage = ZoneAffichage(self)
+        self.__zoneAffichage = cls.ZoneAffichage(self)
         self.__zoneAffichage.pack(padx=5, pady=5)
 
         f1 = Frame(self)
@@ -57,7 +44,7 @@ class FenPrincipale(Tk):
 
         self.__buttons = []
         for i in range(9):
-            button = MonBoutton(self, f1, '*',i)
+            button = cls.MonBoutton(self, f1, '*',i)
             button.grid(row=(i // 3) + 2, column=i - 3 * (i // 3) + 2)
             self.__buttons.append(button)
             self.__buttons[i].config(command=self.__buttons[i].cliquer, state = DISABLED)
@@ -174,21 +161,6 @@ class FenPrincipale(Tk):
     def normal_buttons(self):
         for button in self.__buttons:
             button.config(state=NORMAL)
-
-class MonBoutton(Button):
-    def __init__(self,fen,f,tex,i):
-        Button.__init__(self,master=f,text=tex)
-        self.__pos = i
-        self.__t = tex
-        self.fen = fen
-        self.config(command = self.cliquer)
-    def cliquer(self):
-        """Lance la procedure de traitement a chaque clique sur une lettre """
-        self.config(state = DISABLED)
-        i = self.__pos
-        self.fen.draw_sign(i)
-        self.fen.next_turn()
-
 
 
 

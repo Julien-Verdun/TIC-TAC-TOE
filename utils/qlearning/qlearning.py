@@ -371,17 +371,3 @@ class qlearning:
         if self.is_full(grid) or self.is_won(list_cross) or self.is_lose(list_circle):
             return True
         return False
-
-"""
-ql = qlearning("R.txt","Q.txt","all_possible_grid.txt", 0.8, 1, 100, 9)
-ql.load_list_grid()
-ql.load_R()
-
-ql.load_Q()
-#ql.comput_Q()
-
-# Testing some grid
-print("Trying some prediction :")
-print("Expected result : 2, got : ",ql.predict_move([1,1,0,0,-1,1,0,-1,0]))
-print("Expected result : 6, got : ",ql.predict_move([1,0,-1,0,-1,1,0,0,1]))
-"""

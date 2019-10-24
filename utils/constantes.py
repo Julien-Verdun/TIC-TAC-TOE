@@ -1,4 +1,6 @@
-#size of the window
+# This file includes all the required files for TIC TAC TOE
+
+# Size of the window
 width = 400
 height = 400
 depth = 1
